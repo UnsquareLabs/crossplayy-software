@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gaming Login Portal</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+    <div class="background"></div>
+    <div id="particles"></div>
+
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Left Side - Logo -->
+            <div class="logo-section">
+                <!-- <div class="logo"><img src="/logo.png" alt="CROSSPLAYY Logo"></div> -->
+                <div class="welcome-text">Welcome to CROSSPLAY</div>
+            </div>
+
+            <!-- Right Side - Login Form -->
+            <div class="form-section">
+                <h2 class="form-title">Welcome Back, Gamer!</h2>
+
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label for="text">Unique ID</label>
+                        <input type="text" id="text" name="UniqueID" placeholder="Enter your Unique ID" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    </div>
+
+                    <button type="submit" class="login-btn">
+                        <span>Submit</span>
+                    </button>
+
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        Connecting to game servers...
+                    </div>
+
+                    <div class="success-check" id="successCheck">
+                        ✓ Login Successful!
+                    </div>
+                </form>
+
+
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+
+</body>
+
+</html>

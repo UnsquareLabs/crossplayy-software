@@ -3,7 +3,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const testRoutes = require('./routes/test');
-
+const cors = require('cors');
 // Load env variables
 dotenv.config();
 
@@ -12,6 +12,7 @@ connectDB();
 
 const app = express();
 
+app.use(cors());
 // Middleware to parse JSON bodies
 app.use(express.json());
 

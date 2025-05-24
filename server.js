@@ -1,9 +1,18 @@
-const app = require('./backend/app');
+const path = require('path');
+const express = require('express');
+const app = require('./backend/app');  // your backend Express app
+
 const PORT = process.env.PORT || 3000;
 
+// Serve frontend static files from public folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Route root to login.html from public folder
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Start the server
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
-  
-  const open = require('child_process').exec;
-  open(`start http://localhost:${PORT}`); // For Windows
 });
