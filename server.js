@@ -1,6 +1,7 @@
 const path = require('path');
 const express = require('express');
 const app = require('./backend/app');  // your backend Express app
+const open = require('open');
 
 const PORT = process.env.PORT || 3000;
 
@@ -11,6 +12,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
+
+open(`http://localhost:${PORT}`);
 
 // Start the server
 app.listen(PORT, () => {
