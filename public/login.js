@@ -111,37 +111,6 @@ document.querySelectorAll('input').forEach(input => {
   });
 });
 
-// Social Button Effects
-document.querySelectorAll('.social-btn').forEach(btn => {
-  btn.addEventListener('click', function (e) {
-    e.preventDefault();
-    playSound(500, 0.15);
-
-    // Create ripple effect
-    const ripple = document.createElement('div');
-    ripple.style.cssText = `
-                    position: absolute;
-                    border-radius: 50%;
-                    background: rgba(0, 212, 255, 0.6);
-                    transform: scale(0);
-                    animation: ripple 0.6s linear;
-                    pointer-events: none;
-                `;
-
-    const rect = this.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    ripple.style.width = ripple.style.height = size + 'px';
-    ripple.style.left = (rect.width / 2 - size / 2) + 'px';
-    ripple.style.top = (rect.height / 2 - size / 2) + 'px';
-
-    this.style.position = 'relative';
-    this.appendChild(ripple);
-
-    setTimeout(() => {
-      ripple.remove();
-    }, 600);
-  });
-});
 
 // Keyboard Shortcuts
 document.addEventListener('keydown', function (e) {
