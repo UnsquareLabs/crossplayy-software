@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CROSSPLAY - Paid Bills</title>
+    <link rel="stylesheet" href="PBills.css">
+
+</head>
+
+<body>
+    <div class="background"></div>
+    <div id="particles"></div>
+
+    <!-- Gaming Stickers Background -->
+    <div class="gaming-stickers" id="gamingStickers"></div>
+
+    <!-- Menu Toggle -->
+    <div class="menu-toggle" id="menuToggle">
+        <div class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Side Menu -->
+    <nav class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            <div class="menu-logo">CROSSPLAY</div>
+            <div class="menu-subtitle">Gaming Portal</div>
+        </div>
+        <div class="menu-items">
+            <a href="pc.html" class="menu-item">🎮 Dashboard</a>
+            <a href="paid-bills.html" class="menu-item active">💰 Paid Bills</a>
+            <a href="unpaid-bills.html" class="menu-item">📋 Unpaid Bills</a>
+            <a href="customer.html" class="menu-item">👥 Customers</a>
+            <a href="reports.html" class="menu-item">📊 Reports</a>
+            <a href="settings.html" class="menu-item">⚙️ Settings</a>
+            <a href="login.html" class="menu-item">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-text">Paid Bills Management</div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Bills Table -->
+        <div class="table-container">
+            <div class="table-header">
+                <h3>Paid Bills History</h3>
+                <div class="search-container">
+                    <input type="text" class="search-input" id="searchInput"
+                        placeholder="Search by name or contact">
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Loading bills data...
+            </div>
+
+            <table class="bills-table" id="billsTable">
+                <thead>
+                    <tr>
+                        <th>Customer Name</th>
+                        <th>Contact</th>
+                        <th>PC Units</th>
+                        <th>Booking Time</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="billsTableBody">
+                    <!-- Bills will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Bill Details</h3>
+            <form id="editForm">
+                <div class="form-group">
+                    <label for="editUserName">Customer Name</label>
+                    <input type="text" id="editUserName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editContactNo">Contact Number</label>
+                    <input type="text" id="editContactNo" required>
+                </div>
+                <div class="form-group">
+                    <label for="editAmount">Amount (₹)</label>
+                    <input type="number" id="editAmount" required>
+                </div>
+                <div class="form-group">
+                    <label for="editPcUnits">PC Units</label>
+                    <div id="editPcUnitsContainer"></div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="modal-btn save-btn">Save Changes</button>
+                    <button type="button" class="modal-btn cancel-btn" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="PBills.js"></script>
+
+</body>
+
+</html>

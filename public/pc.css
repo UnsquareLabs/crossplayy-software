@@ -327,6 +327,10 @@ body {
     border-color: rgba(255, 69, 58, 0.5);
 }
 
+.pc-card.payment-due {
+    border-color: rgba(255, 69, 58, 0.5); /* Deep orange border */
+}
+
 .pc-header {
     display: flex;
     justify-content: space-between;
@@ -369,6 +373,12 @@ body {
     border: 1px solid rgba(255, 69, 58, 0.5);
 }
 
+.pc-status.payment-due {
+    background: rgba(255, 69, 58, 0.2);
+    color: #ff453a;
+    border: 1px solid rgba(255, 69, 58, 0.5);/* Semi-transparent amber border */
+}
+
 .pc-specs {
     margin-bottom: 15px;
     font-size: 14px;
@@ -394,6 +404,10 @@ body {
 }
 
 .pc-time.occupied {
+    color: #ff453a;
+}
+
+.pc-time.payment-due {
     color: #ff453a;
 }
 
