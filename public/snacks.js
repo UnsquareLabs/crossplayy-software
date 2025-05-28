@@ -155,7 +155,7 @@ function renderSnacks(snacks) {
                 <div class="snack-price">${formatCurrency(snack.price)}</div>
                 <div class="quantity-control">
                     <button class="quantity-btn decrease-btn" onclick="decreaseQuantity('${snack._id}')">-</button>
-                    <input type="number" class="quantity-input" value="${snack.quantity}" min="0" onchange="updateQuantity('${snack._id}', this.value)">
+                    <input type="number" class="quantity-input" value="${snack.quantity}" readonly inputmode="none" />
                     <button class="quantity-btn increase-btn" onclick="increaseQuantity('${snack._id}')">+</button>
                 </div>
                 <div class="snack-actions">
@@ -266,98 +266,76 @@ async function deleteSnack(snackId) {
 // Increase quantity
 async function increaseQuantity(snackId) {
     try {
-        playSound(500, 0.1)
-        const snack = snacksData.find((s) => s._id === snackId)
-        if (!snack) return
-
-        const newQuantity = snack.quantity + 1
-        await updateSnackQuantity(snackId, newQuantity)
+        playSound(500, 0.1);
+        await updateSnackQuantity(snackId, true); // true = increase
     } catch (error) {
-        console.error("Error increasing quantity:", error)
-        showMessage("Failed to update quantity. Please try again.", "error")
+        console.error("Error increasing quantity:", error);
+        showMessage("Failed to increase quantity. Please try again.", "error");
     }
 }
 
 // Decrease quantity
 async function decreaseQuantity(snackId) {
     try {
-        playSound(400, 0.1)
-        const snack = snacksData.find((s) => s._id === snackId)
-        if (!snack || snack.quantity <= 0) return
-
-        const newQuantity = snack.quantity - 1
-        await updateSnackQuantity(snackId, newQuantity)
+        playSound(400, 0.1);
+        await updateSnackQuantity(snackId, false); // false = decrease
     } catch (error) {
-        console.error("Error decreasing quantity:", error)
-        showMessage("Failed to update quantity. Please try again.", "error")
+        console.error("Error decreasing quantity:", error);
+        showMessage("Failed to decrease quantity. Please try again.", "error");
     }
 }
 
-// Update quantity from input
-async function updateQuantity(snackId, value) {
+// Update snack quantity using boolean flag
+async function updateSnackQuantity(snackId, increase) {
     try {
-        playSound(450, 0.1)
-        const newQuantity = Number.parseInt(value)
-        if (isNaN(newQuantity) || newQuantity < 0) return
-
-        await updateSnackQuantity(snackId, newQuantity)
-    } catch (error) {
-        console.error("Error updating quantity:", error)
-        showMessage("Failed to update quantity. Please try again.", "error")
-    }
-}
-
-// Update snack quantity
-async function updateSnackQuantity(snackId, newQuantity) {
-    try {
-        const snack = snacksData.find((s) => s._id === snackId)
-        if (!snack) return
-
-        const res = await fetch(`http://localhost:3000/api/snacks/edit/${snackId}`, {
+        const res = await fetch(`http://localhost:3000/api/snacks/editQuant/${snackId}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                ...snack,
-                quantity: newQuantity,
-            }),
-        })
+            body: JSON.stringify({ increase }),
+        });
 
         if (!res.ok) {
-            throw new Error("Failed to update quantity")
+            const errorData = await res.json();
+            throw new Error(errorData.message || "Failed to update quantity");
         }
 
+        const data = await res.json();
+        const updatedSnack = data.snack;
+
         // Update local data
-        snack.quantity = newQuantity
+        const snack = snacksData.find((s) => s._id === snackId);
+        if (snack) {
+            snack.quantity = updatedSnack.quantity;
+        }
 
-        // Update UI with new stock status
-        const card = document.querySelector(`.snack-card[data-id="${snackId}"]`)
+        // Update UI
+        const card = document.querySelector(`.snack-card[data-id="${snackId}"]`);
         if (card) {
-            const stockStatus = getStockStatus(newQuantity)
-            const stockText = getStockStatusText(newQuantity)
+            const stockStatus = getStockStatus(updatedSnack.quantity);
+            const stockText = getStockStatusText(updatedSnack.quantity);
 
-            // Update card classes
-            card.className = `snack-card stock-${stockStatus}`
-            card.setAttribute("data-id", snackId)
+            card.className = `snack-card stock-${stockStatus}`;
+            card.setAttribute("data-id", snackId);
 
-            // Update stock indicator
-            const stockIndicator = card.querySelector(".stock-indicator")
+            const stockIndicator = card.querySelector(".stock-indicator");
             if (stockIndicator) {
-                stockIndicator.className = `stock-indicator ${stockStatus}`
-                stockIndicator.textContent = stockText
+                stockIndicator.className = `stock-indicator ${stockStatus}`;
+                stockIndicator.textContent = stockText;
             }
 
-            // Update quantity input
-            const quantityInput = card.querySelector(".quantity-input")
+            const quantityInput = card.querySelector(".quantity-input");
             if (quantityInput) {
-                quantityInput.value = newQuantity
+                quantityInput.value = updatedSnack.quantity;
             }
         }
     } catch (error) {
-        throw error
+        console.error("Error updating quantity:", error.message);
+        showMessage("Failed to update quantity", "error");
     }
 }
+
 
 // Close modal
 function closeModal() {
@@ -388,15 +366,6 @@ function closeModal() {
 //     })
 // }
 
-// Convert file to base64
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.readAsDataURL(file)
-        reader.onload = () => resolve(reader.result)
-        reader.onerror = (error) => reject(error)
-    })
-}
 
 // Handle form submission
 document.getElementById("snackForm").addEventListener("submit", async (e) => {

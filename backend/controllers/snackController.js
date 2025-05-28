@@ -2,7 +2,7 @@ const Snack = require('../models/snacks.models'); // adjust path as needed
 
 const addSnack = async (req, res) => {
     try {
-        const {  name, quantity, price } = req.body;
+        const { name, quantity, price } = req.body;
         const imageFile = req.file;
 
         if (!name || !imageFile || quantity == null || price == null) {
@@ -12,7 +12,6 @@ const addSnack = async (req, res) => {
         
 
         const newSnack = new Snack({
-            // snackId,
             name,
             image: {
                 data: imageFile.buffer,
@@ -27,6 +26,55 @@ const addSnack = async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(200).json({ message: 'Failed to add snack' });
+    }
+};
+// const editSnackQuantity = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const { quantity } = req.body;
+
+//         if (quantity == null) {
+//             return res.status(400).json({ message: 'Quantity is required' });
+//         }
+
+//         const updatedSnack = await Snack.findByIdAndUpdate(
+//             id,
+//             { $set: { quantity } },
+//             { new: true }
+//         );
+
+//         if (!updatedSnack) {
+//             return res.status(404).json({ message: 'Snack not found' });
+//         }
+
+//         res.status(200).json({ message: 'Quantity updated successfully', snack: updatedSnack });
+//     } catch (error) {
+//         console.error("Failed to update quantity:", error);
+//         res.status(500).json({ message: 'Failed to update quantity' });
+//     }
+// };
+
+const editSnackQuantity = async (req, res) => {
+    try {
+        const { id } = req.params; // MongoDB ObjectId
+        const { increase } = req.body; // true or false
+
+        if (typeof increase !== 'boolean') {
+            return res.status(400).json({ message: 'Boolean "increase" value is required' });
+        }
+
+        const snack = await Snack.findById(id);
+        if (!snack) {
+            return res.status(404).json({ message: 'Snack not found' });
+        }
+
+        snack.quantity = increase ? snack.quantity + 1 : Math.max(snack.quantity - 1, 0);
+        await snack.save();
+
+        res.status(200).json({ message: 'Quantity updated', snack });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to update quantity' });
     }
 };
 
@@ -118,5 +166,6 @@ module.exports = {
     editSnack,
     deleteSnack,
     getAllSnacks,
-    getSnackImage
+    getSnackImage,
+    editSnackQuantity
 };
