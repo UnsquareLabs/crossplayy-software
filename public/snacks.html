@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CROSSPLAY - Snacks Management</title>
+    <link rel="stylesheet" href="snacks.css">
+</head>
+
+<body>
+    <div class="background"></div>
+    <div id="particles"></div>
+
+    <!-- Gaming Stickers Background -->
+    <div class="gaming-stickers" id="gamingStickers"></div>
+
+    <!-- Menu Toggle -->
+    <div class="menu-toggle" id="menuToggle">
+        <div class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Side Menu -->
+    <nav class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            <div class="menu-logo">CROSSPLAY</div>
+            <div class="menu-subtitle">Gaming Portal</div>
+        </div>
+        <div class="menu-items">
+            <a href="pc.html" class="menu-item">🎮 Dashboard</a>
+            <a href="paid-bills.html" class="menu-item">💰 Paid Bills</a>
+            <a href="unpaid-bills.html" class="menu-item">📋 Unpaid Bills</a>
+            <a href="customers.html" class="menu-item">👥 Customers</a>
+            <a href="index.html" class="menu-item active">🍕 Snacks</a>
+            <a href="reports.html" class="menu-item">📊 Reports</a>
+            <a href="settings.html" class="menu-item">⚙️ Settings</a>
+            <a href="login.html" class="menu-item">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-text">Snacks Management</div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Snacks Container -->
+        <div class="table-container">
+            <div class="table-header">
+                <h3>Snacks Inventory</h3>
+                <div class="header-controls">
+                    <div class="search-container">
+                        <input type="text" class="search-input" id="searchInput" placeholder="Search snacks...">
+                    </div>
+                    <button class="add-snack-btn" onclick="openAddModal()">+ Add Snack</button>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Loading snacks inventory...
+            </div>
+
+            <div class="snacks-grid" id="snacksGrid">
+                <!-- Snacks will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Snack Modal -->
+    <div id="snackModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Add New Snack</h3>
+            <form id="snackForm">
+                <div class="form-group">
+                    <label for="snackName">Snack Name</label>
+                    <input type="text" id="snackName" required>
+                </div>
+                <div class="form-group">
+                    <label for="snackPrice">Price (₹)</label>
+                    <input type="number" id="snackPrice" min="0" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="snackQuantity">Quantity</label>
+                    <input type="number" id="snackQuantity" min="0" value="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="snackImage">Upload Image</label>
+                    <input type="file" id="snackImage" accept="image/*">
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <!-- <img id="previewImg" src="/placeholder.svg" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px;"> -->
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="modal-btn save-btn">Save Snack</button>
+                    <button type="button" class="modal-btn cancel-btn" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="snacks.js"></script>
+</body>
+
+</html>

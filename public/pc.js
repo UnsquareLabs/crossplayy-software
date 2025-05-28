@@ -542,6 +542,37 @@ async function confirmPayment() {
             throw new Error(errorData.message || 'Failed to update bill status');
         }
 
+        // Step 2: Fetch the updated bill data to get user info
+        const billRes = await fetch(`http://localhost:3000/api/bills/${billId}`);
+        const bill = await billRes.json();
+
+        if (!billRes.ok) {
+            throw new Error('Failed to fetch updated bill details');
+        }
+
+        // Step 3: Send customer data to /api/customer/create
+        const customerPayload = {
+            name: bill.userName,
+            contactNo: bill.contactNo,
+            loyaltyPoints: Math.floor(bill.amount / 100)*5 // 1 point per ₹10
+        };
+
+        const customerRes = await fetch('http://localhost:3000/api/customer/createOrAdd', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(customerPayload)
+        });
+
+        const customerResult = await customerRes.json();
+
+        if (!customerRes.ok) {
+            console.warn('Customer save failed:', customerResult.message);
+        } else {
+            console.log('Customer update result:', customerResult.message);
+        }
+
         updatePCTimes();
         updateUnpaidBills();
         closePaymentModal();

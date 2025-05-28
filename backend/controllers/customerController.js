@@ -1,7 +1,7 @@
 const Customer = require('../models/customer.models');
 
 // Create or update loyalty
-const createCustomer = async (req, res) => {
+const createCustomerOrAdd = async (req, res) => {
     try {
         const { name, contactNo, loyaltyPoints = 0 } = req.body;
 
@@ -26,7 +26,29 @@ const createCustomer = async (req, res) => {
         res.status(500).json({ message: 'Error creating customer' });
     }
 };
+const onlyCreateCustomer = async (req, res) => {
+    try {
+        const { name, contactNo, loyaltyPoints = 0 } = req.body;
 
+        if (!name || !contactNo) {
+            return res.status(400).json({ message: 'Name and contactNo are required' });
+        }
+
+        const existingCustomer = await Customer.findOne({ contactNo });
+
+        if (existingCustomer) {
+            return res.status(200).json({ message: 'Customer phone no already exists in db', customer: existingCustomer });
+        }
+
+        const newCustomer = new Customer({ name, contactNo, loyaltyPoints });
+        await newCustomer.save();
+        res.status(201).json({ message: 'Customer created', customer: newCustomer });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error creating customer' });
+    }
+};
 const getAllCustomers = async (req, res) => {
     try {
         const customers = await Customer.find();
@@ -68,7 +90,8 @@ const deleteCustomer = async (req, res) => {
 };
 
 module.exports = {
-    createCustomer,
+    createCustomerOrAdd,
+    onlyCreateCustomer,
     getAllCustomers,
     updateCustomer,
     deleteCustomer

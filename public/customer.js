@@ -277,7 +277,7 @@ document.getElementById('customerForm').addEventListener('submit', async functio
                 body: JSON.stringify(customerData)
             });
         } else {
-            res = await fetch('http://localhost:3000/api/customer/create', {
+            res = await fetch('http://localhost:3000/api/customer/onlyCreate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -294,9 +294,14 @@ document.getElementById('customerForm').addEventListener('submit', async functio
         await fetchAndRenderCustomers();
         closeModal();
         playSound(800, 0.3);
-
-        const message = isEditMode ? '✓ Customer updated successfully!' : '✓ Customer added successfully!';
-        showMessage(message, 'success');
+        const result = await res.json(); // ✅ Moved here, so it’s always defined
+        // console.log(result.message);
+        if (result.message === 'Customer phone no already exists in db') {
+            showMessage('ℹ Customer already exists', 'info');
+        } else {
+            const message = isEditMode ? '✓ Customer updated successfully!' : '✓ Customer added successfully!';
+            showMessage(message, 'success');
+        }
     } catch (error) {
         console.error('Error saving customer:', error);
         showMessage(error.message || 'Failed to save customer. Please try again.', 'error');
