@@ -149,7 +149,7 @@ function renderSnacks(snacks) {
             return `
         <div class="snack-card stock-${stockStatus}" data-id="${snack._id}">
             <div class="stock-indicator ${stockStatus}">${stockText}</div>
-            <img src="/api/snacks/image/${snack._id}" alt="${snack.name}" class="snack-image" onerror="this.src='/placeholder.svg?height=180&width=250'">
+            <img src="/api/snacks/image/${snack._id}?v=${new Date(snack.updatedAt).getTime()}" alt="${snack.name}" class="snack-image" onerror="this.src='/placeholder.svg?height=180&width=250'">
             <div class="snack-details">
                 <h3 class="snack-name">${snack.name}</h3>
                 <div class="snack-price">${formatCurrency(snack.price)}</div>
@@ -391,6 +391,7 @@ document.getElementById("snackForm").addEventListener("submit", async (e) => {
         formData.append("image", imageFile);
     }
 
+    let message = "";
     try {
         let res
         if (isEditMode && currentEditingId) {
@@ -398,11 +399,13 @@ document.getElementById("snackForm").addEventListener("submit", async (e) => {
                 method: "PUT",
                 body: formData
             })
+            message = "✓ Snack updated successfully!";
         } else {
             res = await fetch("http://localhost:3000/api/snacks/create", {
                 method: "POST",
                 body: formData
             })
+            message = "✓ Snack added successfully!";
         }
 
         if (!res.ok) {
@@ -410,11 +413,10 @@ document.getElementById("snackForm").addEventListener("submit", async (e) => {
             throw new Error(errorData.message || "Failed to save snack")
         }
 
-        await fetchAndRenderSnacks()
         closeModal()
+        fetchAndRenderSnacks()
         playSound(800, 0.3)
 
-        const message = isEditMode ? "✓ Snack updated successfully!" : "✓ Snack added successfully!"
         showMessage(message, "success")
     } catch (error) {
         console.error("Error saving snack:", error)

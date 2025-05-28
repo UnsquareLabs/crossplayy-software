@@ -9,7 +9,7 @@ const addSnack = async (req, res) => {
             return res.status(400).json({ message: 'All fields are required including image' });
         }
 
-        
+
 
         const newSnack = new Snack({
             name,
@@ -28,31 +28,6 @@ const addSnack = async (req, res) => {
         res.status(200).json({ message: 'Failed to add snack' });
     }
 };
-// const editSnackQuantity = async (req, res) => {
-//     try {
-//         const { id } = req.params;
-//         const { quantity } = req.body;
-
-//         if (quantity == null) {
-//             return res.status(400).json({ message: 'Quantity is required' });
-//         }
-
-//         const updatedSnack = await Snack.findByIdAndUpdate(
-//             id,
-//             { $set: { quantity } },
-//             { new: true }
-//         );
-
-//         if (!updatedSnack) {
-//             return res.status(404).json({ message: 'Snack not found' });
-//         }
-
-//         res.status(200).json({ message: 'Quantity updated successfully', snack: updatedSnack });
-//     } catch (error) {
-//         console.error("Failed to update quantity:", error);
-//         res.status(500).json({ message: 'Failed to update quantity' });
-//     }
-// };
 
 const editSnackQuantity = async (req, res) => {
     try {
@@ -80,14 +55,16 @@ const editSnackQuantity = async (req, res) => {
 
 const editSnack = async (req, res) => {
     try {
-        const { id } = req.params;
+        const { id } = req.params; // This should be the MongoDB _id
         const { name, price, quantity } = req.body;
         const imageFile = req.file;
 
+        // Basic validation
         if (!name || price == null || quantity == null) {
             return res.status(400).json({ message: 'Name, price, and quantity are required' });
         }
 
+        // Build the update object
         const updateData = {
             name,
             price,
@@ -101,10 +78,11 @@ const editSnack = async (req, res) => {
             };
         }
 
-        const updated = await Snack.findOneAndUpdate(
-            // { snackId: id },
+        // Perform update
+        const updated = await Snack.findByIdAndUpdate(
+            id,                    // Use _id here
             { $set: updateData },
-            { new: true }
+            { new: true }          // Return the updated document
         );
 
         if (!updated) {
@@ -117,6 +95,7 @@ const editSnack = async (req, res) => {
         res.status(500).json({ message: 'Failed to update snack' });
     }
 };
+
 
 
 const deleteSnack = async (req, res) => {
