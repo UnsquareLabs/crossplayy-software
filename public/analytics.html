@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CROSSPLAY - Analytics Dashboard</title>
+    <link rel="stylesheet" href="analytics.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+</head>
+
+<body>
+    <div class="background"></div>
+    <div id="particles"></div>
+
+    <!-- Gaming Stickers Background -->
+    <div class="gaming-stickers" id="gamingStickers"></div>
+
+    <!-- Menu Toggle -->
+    <div class="menu-toggle" id="menuToggle">
+        <div class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Side Menu -->
+    <nav class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            <div class="menu-logo">CROSSPLAY</div>
+            <div class="menu-subtitle">Gaming Portal</div>
+        </div>
+        <div class="menu-items">
+            <a href="pc.html" class="menu-item">🎮 Dashboard</a>
+            <a href="paid-bills.html" class="menu-item">💰 Paid Bills</a>
+            <a href="unpaid-bills.html" class="menu-item">📋 Unpaid Bills</a>
+            <a href="customer.html" class="menu-item">👥 Customers</a>
+            <a href="analytics.html" class="menu-item active">📊 Analytics</a>
+            <a href="settings.html" class="menu-item">⚙️ Settings</a>
+            <a href="login.html" class="menu-item">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-text">Analytics Dashboard</div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Analytics Controls -->
+        <div class="controls-container">
+            <div class="controls-header">
+                <h3>📊 Earnings Analytics</h3>
+                <p>Analyze your gaming center's revenue performance</p>
+            </div>
+            
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label for="rangeType">📅 Time Range</label>
+                    <select id="rangeType" class="control-input">
+                        <option value="hourly">Hourly</option>
+                        <option value="daily" selected>Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="startDate">🗓️ Start Date</label>
+                    <input type="datetime-local" id="startDate" class="control-input">
+                </div>
+
+                <div class="control-group">
+                    <label for="endDate">🗓️ End Date</label>
+                    <input type="datetime-local" id="endDate" class="control-input">
+                </div>
+
+                <div class="control-group">
+                    <button id="generateBtn" class="generate-btn">
+                        <span class="btn-icon">⚡</span>
+                        Generate Analytics
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Results -->
+        <div class="results-container" id="resultsContainer" style="display: none;">
+            <div class="results-header">
+                <h3>📈 Revenue Analysis</h3>
+                <div class="stats-summary" id="statsSummary">
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Revenue</div>
+                            <div class="stat-value" id="totalRevenue">₹0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Average</div>
+                            <div class="stat-value" id="avgRevenue">₹0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Peak</div>
+                            <div class="stat-value" id="peakRevenue">₹0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="analyticsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Loading Animation -->
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <div class="loading-text">Generating analytics...</div>
+        </div>
+
+        <!-- Error Message -->
+        <div class="error-container" id="errorContainer" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <div class="error-message" id="errorMessage">Failed to load analytics data</div>
+            <button class="retry-btn" onclick="generateAnalytics()">🔄 Retry</button>
+        </div>
+    </div>
+
+    <script src="analytics.js"></script>
+</body>
+
+</html>
