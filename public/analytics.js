@@ -298,7 +298,26 @@ async function generateAnalytics() {
         alert('Please select both start and end dates');
         return;
     }
+    // Convert to Date objects for comparison
+    const start = new Date(startDateInput);
+    const end = new Date(endDateInput);
+    // Check if start date is after end date
+    if (start > end) {
+        alert('Start date cannot be after end date.');
+        return;
+    }
+    // Enforce same date for 'hourly' range
+    if (rangeType === 'hourly') {
+        const isSameDate =
+            start.getFullYear() === end.getFullYear() &&
+            start.getMonth() === end.getMonth() &&
+            start.getDate() === end.getDate();
 
+        if (!isSameDate) {
+            alert('For "hourly" range, the start and end date must be the same.');
+            return;
+        }
+    }
     // console.log('Start Date (IST local input):', startDateInput);
     // console.log('End Date (IST local input):', endDateInput);
 
