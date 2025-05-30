@@ -483,12 +483,19 @@ body {
 }
 
 @keyframes bounce {
-    0%, 20%, 50%, 80%, 100% {
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
         transform: translateY(0);
     }
+
     40% {
         transform: translateY(-3px);
     }
+
     60% {
         transform: translateY(-2px);
     }
@@ -643,12 +650,14 @@ body {
     backdrop-filter: blur(20px);
     border-left: 1px solid rgba(255, 255, 255, 0.2);
     transition: right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    z-index: 150;
+    z-index: 9999;
     overflow-y: auto;
+    display:block;
 }
 
 .snacks-panel.open {
     right: 0;
+    opacity: 1;
 }
 
 .snacks-content {

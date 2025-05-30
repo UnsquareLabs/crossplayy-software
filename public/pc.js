@@ -69,9 +69,9 @@ async function startSnacksWorkflow() {
     try {
         const response = await fetch('http://localhost:3000/api/bills/all');
         const bills = await response.json();
-        
-        const unpaidBills = bills.filter(bill => !bill.status);
-        
+
+        const unpaidBills = bills.filter(bill => !bill.status && bill.type == 'pc');
+
         if (unpaidBills.length === 0) {
             alert('No unpaid bills available!');
             return;
@@ -88,7 +88,7 @@ async function startSnacksWorkflow() {
 function showBillSelectionModal(bills) {
     const modal = document.getElementById('billSelectionModal');
     const billsList = document.getElementById('billSelectionList');
-    
+
     billsList.innerHTML = bills.map(bill => {
         const pcs = bill.pcUnits.map(pc => {
             const hours = Math.floor(pc.duration / 60);
@@ -126,7 +126,7 @@ function showBillSelectionModal(bills) {
 function selectBillForSnacks(billId, userName, pcs) {
     currentBillId = billId;
     selectedBillInfo = { userName, pcs };
-    
+
     closeBillSelection();
     openSnacksPanel();
     playSound(800, 0.2);
@@ -139,7 +139,9 @@ function closeBillSelection() {
 async function openSnacksPanel() {
     const snacksPanel = document.getElementById('snacksPanel');
     const selectedBillInfoDiv = document.getElementById('selectedBillInfo');
-    
+    console.log('Opening snacks panel...');
+    console.log('selectedBillInfo:', selectedBillInfo);
+    console.log('snacksPanel:', snacksPanel);
     // Update selected bill info
     if (selectedBillInfo) {
         selectedBillInfoDiv.innerHTML = `
@@ -147,9 +149,9 @@ async function openSnacksPanel() {
             <small>${selectedBillInfo.pcs}</small>
         `;
     }
-    
+
     snacksPanel.classList.add('open');
-    
+
     // Load snacks data if not already loaded
     if (snacksData.length === 0) {
         await loadSnacksData();
@@ -171,14 +173,14 @@ async function loadSnacksData() {
         if (!response.ok) {
             throw new Error('Failed to fetch snacks');
         }
-        
+
         snacksData = await response.json();
         renderSnacksGrid();
         setupSnacksSearch();
         setupCategoryFilter();
     } catch (error) {
         console.error('Error loading snacks:', error);
-        document.getElementById('snacksGrid').innerHTML = 
+        document.getElementById('snacksGrid').innerHTML =
             '<div style="text-align: center; color: #ff453a; padding: 20px;">Failed to load snacks</div>';
     }
 }
@@ -186,7 +188,7 @@ async function loadSnacksData() {
 function renderSnacksGrid(filteredSnacks = null) {
     const snacksGrid = document.getElementById('snacksGrid');
     const snacksToRender = filteredSnacks || snacksData;
-    
+
     if (snacksToRender.length === 0) {
         snacksGrid.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 20px;">No snacks found</div>';
         return;
@@ -196,7 +198,7 @@ function renderSnacksGrid(filteredSnacks = null) {
         const cartItem = snacksCart.find(item => item.id === snack._id);
         const quantityInCart = cartItem ? cartItem.quantity : 0;
         const isOutOfStock = snack.quantity <= 0;
-        
+
         return `
             <div class="snack-item" data-category="${snack.category}">
                 <div class="snack-header">
@@ -227,7 +229,7 @@ function updateSnackQuantity(snackId, change) {
     if (!snack) return;
 
     const existingCartItem = snacksCart.find(item => item.id === snackId);
-    
+
     if (existingCartItem) {
         existingCartItem.quantity += change;
         if (existingCartItem.quantity <= 0) {
@@ -258,12 +260,12 @@ function updateSnacksCart() {
     }
 
     cartContainer.style.display = 'block';
-    
+
     let total = 0;
     cartItems.innerHTML = snacksCart.map(item => {
         const itemTotal = item.price * item.quantity;
         total += itemTotal;
-        
+
         return `
             <div class="cart-item">
                 <div class="cart-item-info">
@@ -324,14 +326,14 @@ async function addCartToBill() {
         // Success feedback
         playSound(1000, 0.5);
         alert('Snacks added to bill successfully!');
-        
+
         // Clean up and refresh
         closeSnacksPanel();
         updateUnpaidBills();
-        
+
         // Reload snacks data to reflect updated quantities
         await loadSnacksData();
-        
+
     } catch (error) {
         console.error('Error adding snacks to bill:', error);
         alert('Failed to add snacks to bill. Please try again.');
@@ -340,9 +342,9 @@ async function addCartToBill() {
 
 function setupSnacksSearch() {
     const searchInput = document.getElementById('snacksSearch');
-    searchInput.addEventListener('input', function() {
+    searchInput.addEventListener('input', function () {
         const searchTerm = this.value.toLowerCase();
-        const filteredSnacks = snacksData.filter(snack => 
+        const filteredSnacks = snacksData.filter(snack =>
             snack.name.toLowerCase().includes(searchTerm)
         );
         renderSnacksGrid(filteredSnacks);
@@ -352,15 +354,15 @@ function setupSnacksSearch() {
 function setupCategoryFilter() {
     const categoryButtons = document.querySelectorAll('.category-btn');
     categoryButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             categoryButtons.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            
+
             const category = this.dataset.category;
-            const filteredSnacks = category === 'all' ? 
-                snacksData : 
+            const filteredSnacks = category === 'all' ?
+                snacksData :
                 snacksData.filter(snack => snack.category === category);
-            
+
             renderSnacksGrid(filteredSnacks);
             playSound(500, 0.1);
         });
@@ -617,7 +619,7 @@ async function bookSelectedPCs() {
             userName,
             contactNo: contactNumber,
             pcUnits: bookings,
-            type :'pc'
+            type: 'pc'
         };
 
         const billResponse = await fetch('http://localhost:3000/api/bills/create', {
@@ -658,7 +660,7 @@ async function extendTime(pcId, minutes) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ pcId: `PC${pcId}`, extendTime: minutes, type :'pc' })
+            body: JSON.stringify({ pcId: `PC${pcId}`, extendTime: minutes, type: 'pc' })
         });
 
         const billData = await billResponse.json();
@@ -719,7 +721,7 @@ async function updateUnpaidBills() {
                 if (mins > 0) timeStr += `${mins} min`;
                 return `${pc.pcId} (${timeStr.trim()})`;
             }).join(', ');
-            
+
             const bookingDate = new Date(bill.bookingTime);
             const istTime = bookingDate.toLocaleString('en-IN', {
                 timeZone: 'Asia/Kolkata',
@@ -732,7 +734,7 @@ async function updateUnpaidBills() {
 
             let snacksInfo = '';
             if (bill.snacks && bill.snacks.length > 0) {
-                const snacksList = bill.snacks.map(snack => 
+                const snacksList = bill.snacks.map(snack =>
                     `${snack.name} (${snack.quantity})`
                 ).join(', ');
                 snacksInfo = `<br><small>🍿 Snacks: ${snacksList}</small>`;
@@ -844,7 +846,7 @@ async function confirmPayment() {
         const customerPayload = {
             name: bill.userName,
             contactNo: bill.contactNo,
-            loyaltyPoints: Math.floor(bill.amount / 100)*5
+            loyaltyPoints: Math.floor(bill.amount / 100) * 5
         };
 
         const customerRes = await fetch('http://localhost:3000/api/customer/createOrAdd', {
@@ -937,7 +939,7 @@ document.addEventListener('click', function (e) {
         }
     }
 
-    if (!billSelectionModal.querySelector('.bill-selection-content').contains(e.target) && 
+    if (!billSelectionModal.querySelector('.bill-selection-content').contains(e.target) &&
         billSelectionModal.classList.contains('show')) {
         closeBillSelection();
     }

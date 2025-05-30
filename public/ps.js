@@ -69,7 +69,7 @@ async function startSnacksWorkflow() {
         const response = await fetch('http://localhost:3000/api/bills/all');
         const bills = await response.json();
 
-        const unpaidBills = bills.filter(bill => !bill.status);
+        const unpaidBills = bills.filter(bill => !bill.status && bill.type=='ps');
 
         if (unpaidBills.length === 0) {
             alert('No unpaid bills available!');
@@ -108,7 +108,7 @@ function showBillSelectionModal(bills) {
         });
 
         return `
-            <div class="bill-item selectable" onclick="selectBillForSnacks('${bill._id}', '${bill.userName}', '${ps5s}')">
+            <div class="bill-item selectable" onclick="selectBillForSnacks('${bill._id}', '${bill.userName}', '${pss}')">
                 <div class="bill-ps">${bill.userName} • ${bill.contactNo}</div>
                 <div class="bill-details">
                     ${pss}<br>

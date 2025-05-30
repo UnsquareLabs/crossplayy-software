@@ -39,14 +39,6 @@ const createBill = async (req, res) => {
                 totalAmount += durationHours * ratePerHour;
             }
         } else {
-            // PS Pricing:
-            // 4 players: Rs. 40/person/hour
-            // 3 players: Rs. 45/person/hour
-            // 2 players: Rs. 50/person/hour
-            // 1 player: Rs. 100/hour
-            // After 10 PM:
-            // Multiplayer: Rs. 70/person
-            // Single player: Rs. 150
 
             for (const unit of psUnits) {
                 const { duration, players } = unit;
@@ -140,14 +132,31 @@ const extendBill = async (req, res) => {
             }
 
             // Find unpaid bill with this pcId
-            const bill = await Bill.findOne({
+            let bill = await Bill.findOne({
                 status: false,
                 type: 'pc',
                 'pcUnits.pcId': pcId
             });
 
+            // If no unpaid bill, find the latest paid bill with this pcId
             if (!bill) {
-                return res.status(404).json({ message: `No unpaid bill found with PC ID ${pcId}` });
+                bill = await Bill.findOne({
+                    status: true,
+                    type: 'pc',
+                    'pcUnits.pcId': pcId
+                }).sort({ bookingTime: -1 });
+
+                if (!bill) {
+                    return res.status(404).json({ message: `No bill found with PC ID ${pcId}` });
+                }
+
+                // Mark the bill as unpaid (status = false)
+                bill.status = false;
+
+                // Optionally reset the amount to 0 or keep existing? 
+                // But per your request, set remaining amount as extendCost later.
+
+                // We'll continue to extend below.
             }
 
             const pcUnit = bill.pcUnits.find(unit => unit.pcId === pcId);
@@ -160,7 +169,17 @@ const extendBill = async (req, res) => {
 
             // Extend cost for PC
             let extendCost = extendTime === 15 ? 20 : 25;
-            bill.amount += extendCost;
+
+            // If we just converted a paid bill to unpaid, reset amount to extendCost,
+            // else add to existing amount
+            if (bill.status === false && bill.isNew) {
+                bill.amount = extendCost;
+            } else if (bill.status === false && !bill.isNew) {
+                // We already marked unpaid, just add extendCost
+                bill.amount += extendCost;
+            } else {
+                bill.amount += extendCost;
+            }
 
             await bill.save();
 
@@ -173,14 +192,28 @@ const extendBill = async (req, res) => {
             }
 
             // Find unpaid bill with this psId
-            const bill = await Bill.findOne({
+            let bill = await Bill.findOne({
                 status: false,
                 type: 'ps',
                 'psUnits.psId': psId
             });
 
+            // If no unpaid bill, find the latest paid bill with this psId
             if (!bill) {
-                return res.status(404).json({ message: `No unpaid bill found with PS ID ${psId}` });
+                bill = await Bill.findOne({
+                    status: true,
+                    type: 'ps',
+                    'psUnits.psId': psId
+                }).sort({ bookingTime: -1 });
+
+                if (!bill) {
+                    return res.status(404).json({ message: `No bill found with PS ID ${psId}` });
+                }
+
+                // Mark the bill as unpaid
+                bill.status = false;
+
+                // Will apply extendCost below
             }
 
             const psUnit = bill.psUnits.find(unit => unit.psId === psId);
@@ -192,7 +225,15 @@ const extendBill = async (req, res) => {
 
             // Extend cost for PS
             let extendCost = extendTime === 15 ? 30 : 40;
-            bill.amount += extendCost;
+
+            // Similar logic as PC bills for amount update
+            if (bill.status === false && bill.isNew) {
+                bill.amount = extendCost;
+            } else if (bill.status === false && !bill.isNew) {
+                bill.amount += extendCost;
+            } else {
+                bill.amount += extendCost;
+            }
 
             await bill.save();
 
@@ -203,6 +244,7 @@ const extendBill = async (req, res) => {
         res.status(500).json({ message: 'Failed to extend bill' });
     }
 };
+
 
 const getBillById = async (req, res) => {
     try {
