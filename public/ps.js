@@ -1,11 +1,10 @@
-// PC Data
-const pcData = [
+// PS Data
+const psData = [
     { id: 1, status: 'available' }, { id: 2, status: 'available' }, { id: 3, status: 'available' }, { id: 4, status: 'available' }, { id: 5, status: 'available' },
-    { id: 6, status: 'available' }, { id: 7, status: 'available' }, { id: 8, status: 'available' }, { id: 9, status: 'available' }, { id: 10, status: 'available' },
-    { id: 11, status: 'available' }, { id: 12, status: 'available' }, { id: 13, status: 'available' }, { id: 14, status: 'available' }
+    { id: 6, status: 'available' }, { id: 7, status: 'available' }
 ];
-
-let selectedPCs = [];
+let psPlayersMap = {};
+let selectedPS5s = [];
 let snacksData = [];
 let snacksCart = [];
 let currentBillId = null;
@@ -69,9 +68,9 @@ async function startSnacksWorkflow() {
     try {
         const response = await fetch('http://localhost:3000/api/bills/all');
         const bills = await response.json();
-        
+
         const unpaidBills = bills.filter(bill => !bill.status);
-        
+
         if (unpaidBills.length === 0) {
             alert('No unpaid bills available!');
             return;
@@ -88,15 +87,15 @@ async function startSnacksWorkflow() {
 function showBillSelectionModal(bills) {
     const modal = document.getElementById('billSelectionModal');
     const billsList = document.getElementById('billSelectionList');
-    
+
     billsList.innerHTML = bills.map(bill => {
-        const pcs = bill.pcUnits.map(pc => {
-            const hours = Math.floor(pc.duration / 60);
-            const mins = pc.duration % 60;
+        const pss = bill.psUnits.map(ps => {
+            const hours = Math.floor(ps.duration / 60);
+            const mins = ps.duration % 60;
             let timeStr = '';
             if (hours > 0) timeStr += `${hours} hr `;
             if (mins > 0) timeStr += `${mins} min`;
-            return `${pc.pcId} (${timeStr.trim()})`;
+            return `${ps.psId} (${timeStr.trim()})`;
         }).join(', ');
 
         const bookingDate = new Date(bill.bookingTime);
@@ -109,10 +108,10 @@ function showBillSelectionModal(bills) {
         });
 
         return `
-            <div class="bill-item selectable" onclick="selectBillForSnacks('${bill._id}', '${bill.userName}', '${pcs}')">
-                <div class="bill-pc">${bill.userName} • ${bill.contactNo}</div>
+            <div class="bill-item selectable" onclick="selectBillForSnacks('${bill._id}', '${bill.userName}', '${ps5s}')">
+                <div class="bill-ps">${bill.userName} • ${bill.contactNo}</div>
                 <div class="bill-details">
-                    ${pcs}<br>
+                    ${pss}<br>
                     <small>Booked at: ${istTime}</small>
                 </div>
                 <div class="bill-amount">₹${bill.amount.toFixed(2)}</div>
@@ -123,10 +122,10 @@ function showBillSelectionModal(bills) {
     modal.classList.add('show');
 }
 
-function selectBillForSnacks(billId, userName, pcs) {
+function selectBillForSnacks(billId, userName, ps5s) {
     currentBillId = billId;
-    selectedBillInfo = { userName, pcs };
-    
+    selectedBillInfo = { userName, ps5s };
+
     closeBillSelection();
     openSnacksPanel();
     playSound(800, 0.2);
@@ -139,17 +138,17 @@ function closeBillSelection() {
 async function openSnacksPanel() {
     const snacksPanel = document.getElementById('snacksPanel');
     const selectedBillInfoDiv = document.getElementById('selectedBillInfo');
-    
+
     // Update selected bill info
     if (selectedBillInfo) {
         selectedBillInfoDiv.innerHTML = `
             <strong>Selected Bill:</strong> ${selectedBillInfo.userName}<br>
-            <small>${selectedBillInfo.pcs}</small>
+            <small>${selectedBillInfo.ps5s}</small>
         `;
     }
-    
+
     snacksPanel.classList.add('open');
-    
+
     // Load snacks data if not already loaded
     if (snacksData.length === 0) {
         await loadSnacksData();
@@ -171,14 +170,14 @@ async function loadSnacksData() {
         if (!response.ok) {
             throw new Error('Failed to fetch snacks');
         }
-        
+
         snacksData = await response.json();
         renderSnacksGrid();
         setupSnacksSearch();
         setupCategoryFilter();
     } catch (error) {
         console.error('Error loading snacks:', error);
-        document.getElementById('snacksGrid').innerHTML = 
+        document.getElementById('snacksGrid').innerHTML =
             '<div style="text-align: center; color: #ff453a; padding: 20px;">Failed to load snacks</div>';
     }
 }
@@ -186,7 +185,7 @@ async function loadSnacksData() {
 function renderSnacksGrid(filteredSnacks = null) {
     const snacksGrid = document.getElementById('snacksGrid');
     const snacksToRender = filteredSnacks || snacksData;
-    
+
     if (snacksToRender.length === 0) {
         snacksGrid.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 20px;">No snacks found</div>';
         return;
@@ -196,7 +195,7 @@ function renderSnacksGrid(filteredSnacks = null) {
         const cartItem = snacksCart.find(item => item.id === snack._id);
         const quantityInCart = cartItem ? cartItem.quantity : 0;
         const isOutOfStock = snack.quantity <= 0;
-        
+
         return `
             <div class="snack-item" data-category="${snack.category}">
                 <div class="snack-header">
@@ -227,7 +226,7 @@ function updateSnackQuantity(snackId, change) {
     if (!snack) return;
 
     const existingCartItem = snacksCart.find(item => item.id === snackId);
-    
+
     if (existingCartItem) {
         existingCartItem.quantity += change;
         if (existingCartItem.quantity <= 0) {
@@ -258,12 +257,12 @@ function updateSnacksCart() {
     }
 
     cartContainer.style.display = 'block';
-    
+
     let total = 0;
     cartItems.innerHTML = snacksCart.map(item => {
         const itemTotal = item.price * item.quantity;
         total += itemTotal;
-        
+
         return `
             <div class="cart-item">
                 <div class="cart-item-info">
@@ -324,14 +323,14 @@ async function addCartToBill() {
         // Success feedback
         playSound(1000, 0.5);
         alert('Snacks added to bill successfully!');
-        
+
         // Clean up and refresh
         closeSnacksPanel();
         updateUnpaidBills();
-        
+
         // Reload snacks data to reflect updated quantities
         await loadSnacksData();
-        
+
     } catch (error) {
         console.error('Error adding snacks to bill:', error);
         alert('Failed to add snacks to bill. Please try again.');
@@ -340,9 +339,9 @@ async function addCartToBill() {
 
 function setupSnacksSearch() {
     const searchInput = document.getElementById('snacksSearch');
-    searchInput.addEventListener('input', function() {
+    searchInput.addEventListener('input', function () {
         const searchTerm = this.value.toLowerCase();
-        const filteredSnacks = snacksData.filter(snack => 
+        const filteredSnacks = snacksData.filter(snack =>
             snack.name.toLowerCase().includes(searchTerm)
         );
         renderSnacksGrid(filteredSnacks);
@@ -352,25 +351,25 @@ function setupSnacksSearch() {
 function setupCategoryFilter() {
     const categoryButtons = document.querySelectorAll('.category-btn');
     categoryButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             categoryButtons.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            
+
             const category = this.dataset.category;
-            const filteredSnacks = category === 'all' ? 
-                snacksData : 
+            const filteredSnacks = category === 'all' ?
+                snacksData :
                 snacksData.filter(snack => snack.category === category);
-            
+
             renderSnacksGrid(filteredSnacks);
             playSound(500, 0.1);
         });
     });
 }
 
-// PC Management Functions
-async function fetchPCStatus(pcId) {
+// PS Management Functions
+async function fetchPSStatus(psId) {
     try {
-        const res = await fetch(`http://localhost:3000/api/pc/timeleft/PC${pcId}`);
+        const res = await fetch(`http://localhost:3000/api/ps/timeleft/PS${psId}`);
         const data = await res.json();
 
         let minutes = data.timeLeft;
@@ -394,9 +393,9 @@ async function fetchPCStatus(pcId) {
             const bills = await billsRes.json();
 
             for (const bill of bills) {
-                if (!bill.status && bill.type === 'pc') {
-                    const pcUnitMatch = bill.pcUnits.find(unit => unit.pcId === `PC${pcId}`);
-                    if (pcUnitMatch) {
+                if (!bill.status && bill.type === 'ps') {
+                    const psUnitMatch = bill.psUnits.find(unit => unit.psId === `PS${psId}`);
+                    if (psUnitMatch) {
                         return {
                             status: 'payment-due',
                             timeRemaining: 'Payment Due'
@@ -409,61 +408,61 @@ async function fetchPCStatus(pcId) {
         return { status, timeRemaining };
 
     } catch (err) {
-        console.error(`Error fetching time for PC ${pcId}`, err);
+        console.error(`Error fetching time for PS5 ${psId}`, err);
         return { status: 'available', timeRemaining: 'Ready to Play' };
     }
 }
 
-async function initializePCCards() {
-    const pcGrid = document.getElementById('pcGrid');
-    pcGrid.innerHTML = '';
+async function initializePSCards() {
+    const psGrid = document.getElementById('psGrid');
+    psGrid.innerHTML = '';
 
-    for (const pc of pcData) {
-        const pcCard = document.createElement('div');
-        pcCard.id = `pc-card-${pc.id}`;
-        pcCard.className = `pc-card available`;
-        pcCard.onclick = () => selectPC(pc.id);
+    for (const ps of psData) {
+        const psCard = document.createElement('div');
+        psCard.id = `ps-card-${ps.id}`;
+        psCard.className = `ps-card available`;
+        psCard.onclick = () => selectPS(ps.id);
 
-        pcCard.innerHTML = `
-            <div class="pc-header">
-                <div class="pc-number">PC ${pc.id}</div>
-                <div class="pc-status">Loading...</div>
+        psCard.innerHTML = `
+            <div class="ps-header">
+                <div class="ps-number">PS5 ${ps.id}</div>
+                <div class="ps-status">Loading...</div>
             </div>
-            <div class="pc-specs">
-                RTX 4080 • i7-13700K • 32GB RAM • 240Hz Monitor
+            <div class="ps-specs">
+                PS5 • AMD Zen 2 • DualSense Controller • 4K HDR Gaming
             </div>
-            <div class="pc-time">Checking...</div>
+            <div class="ps-time">Checking...</div>
             <div class="extend-buttons"></div>
         `;
 
-        pcGrid.appendChild(pcCard);
+        psGrid.appendChild(psCard);
     }
 
-    updatePCTimes();
-    setInterval(updatePCTimes, 60000);
+    updatePSTimes();
+    setInterval(updatePSTimes, 60000);
 }
 
-async function updatePCTimes() {
-    for (const pc of pcData) {
-        const card = document.getElementById(`pc-card-${pc.id}`);
-        const statusDiv = card.querySelector('.pc-status');
-        const timeDiv = card.querySelector('.pc-time');
+async function updatePSTimes() {
+    for (const ps of psData) {
+        const card = document.getElementById(`ps-card-${ps.id}`);
+        const statusDiv = card.querySelector('.ps-status');
+        const timeDiv = card.querySelector('.ps-time');
         const extendDiv = card.querySelector('.extend-buttons');
 
-        const { status, timeRemaining } = await fetchPCStatus(pc.id);
+        const { status, timeRemaining } = await fetchPSStatus(ps.id);
 
-        pc.status = status;
-        card.className = `pc-card ${status}`;
+        ps.status = status;
+        card.className = `ps-card ${status}`;
 
         statusDiv.textContent = status.replace('-', ' ');
-        statusDiv.className = `pc-status ${status}`;
+        statusDiv.className = `ps-status ${status}`;
         timeDiv.textContent = timeRemaining;
-        timeDiv.className = `pc-time ${status}`;
+        timeDiv.className = `ps-time ${status}`;
 
         if (status === 'occupied' || status === 'ending-soon') {
             extendDiv.innerHTML = `
-                <button class="extend-btn" onclick="confirmExtend(${pc.id}, 15); event.stopPropagation();">+15m</button>
-                <button class="extend-btn" onclick="confirmExtend(${pc.id}, 30); event.stopPropagation();">+30m</button>
+                <button class="extend-btn" onclick="confirmExtend(${ps.id}, 15); event.stopPropagation();">+15m</button>
+                <button class="extend-btn" onclick="confirmExtend(${ps.id}, 30); event.stopPropagation();">+30m</button>
             `;
         } else {
             extendDiv.innerHTML = '';
@@ -473,22 +472,22 @@ async function updatePCTimes() {
     updateStatusCounts();
 }
 
-function confirmExtend(pcId, minutes) {
+function confirmExtend(psId, minutes) {
     const price = minutes === 15 ? 20 : 25;
-    const confirmed = confirm(`Are you sure you want to extend PC ${pcId} by ${minutes} minutes for ₹${price}?`);
+    const confirmed = confirm(`Are you sure you want to extend PS ${psId} by ${minutes} minutes for ₹${price}?`);
     if (confirmed) {
-        extendTime(pcId, minutes);
+        extendTime(psId, minutes);
     }
 }
 
 function updateStatusCounts() {
-    const pcCards = document.querySelectorAll('.pc-card');
+    const psCards = document.querySelectorAll('.ps-card');
 
     let available = 0;
     let endingSoon = 0;
     let occupied = 0;
 
-    pcCards.forEach(card => {
+    psCards.forEach(card => {
         if (card.classList.contains('available')) available++;
         else if (card.classList.contains('ending-soon')) endingSoon++;
         else if (card.classList.contains('occupied')) occupied++;
@@ -499,72 +498,90 @@ function updateStatusCounts() {
     document.getElementById('occupiedCount').textContent = occupied;
 }
 
-function selectPC(pcId) {
-    console.log(`Trying to select PC: ${pcId}`);
+function selectPS(psId) {
+    console.log(`Trying to select PS: ${psId}`);
 
-    const pc = pcData.find(p => p.id === pcId);
-    console.log('Found PC data:', pc);
+    const ps = psData.find(p => p.id === psId);
+    console.log('Found PS5 data:', ps);
 
-    if (!pc) {
-        console.warn(`PC with ID ${pcId} not found in pcData.`);
+    if (!ps) {
+        console.warn(`PS with ID ${psId} not found in psData.`);
         return;
     }
 
-    if (pc.status !== 'available') {
-        console.warn(`PC ${pcId} is not available. Status: ${pc.status}`);
+    if (ps.status !== 'available') {
+        console.warn(`PS ${psId} is not available. Status: ${ps.status}`);
         playSound(300, 0.3);
         return;
     }
 
     playSound(600, 0.2);
-    const pcCard = event.currentTarget;
+    const psCard = event.currentTarget;
 
-    if (selectedPCs.includes(pcId)) {
-        console.log(`Deselecting PC: ${pcId}`);
-        selectedPCs = selectedPCs.filter(id => id !== pcId);
-        pcCard.classList.remove('selected');
+    if (selectedPS5s.includes(psId)) {
+        // Deselect
+        selectedPS5s = selectedPS5s.filter(id => id !== psId);
+        delete psPlayersMap[psId];
+        psCard.classList.remove('selected');
     } else {
-        console.log(`Selecting PC: ${pcId}`);
-        selectedPCs.push(pcId);
-        pcCard.classList.add('selected');
+        // Select
+        selectedPS5s.push(psId);
+        psPlayersMap[psId] = 1; // default to 1 player
+        psCard.classList.add('selected');
     }
 
-    updateSelectedPCsList();
 
-    if (selectedPCs.length > 0) {
-        console.log(`Selected PCs:`, selectedPCs);
+    updateSelectedPSsList();
+
+    if (selectedPS5s.length > 0) {
+        console.log(`Selected PSs:`, selectedPS5s);
         document.getElementById('bookSection').classList.add('show');
     } else {
-        console.log(`No PCs selected.`);
+        console.log(`No PS5s selected.`);
         document.getElementById('bookSection').classList.remove('show');
     }
 }
 
-function updateSelectedPCsList() {
-    const selectedPcsList = document.getElementById('selectedPcsList');
-    selectedPcsList.innerHTML = '';
+function setPlayersForPS(psId, players) {
+    psPlayersMap[psId] = parseInt(players);
+}
 
-    selectedPCs.forEach(pcId => {
-        const pcDiv = document.createElement('div');
-        pcDiv.style.cssText = 'padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;';
-        pcDiv.innerHTML = `
-            <span>PC ${pcId}</span>
-            <button onclick="removeSelectedPC(${pcId})" style="background: rgba(255,69,58,0.2); border: 1px solid rgba(255,69,58,0.5); color: #ff453a; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Remove</button>
+function updateSelectedPSsList() {
+    const selectedPSsList = document.getElementById('selectedPSsList');
+    selectedPSsList.innerHTML = '';
+
+    selectedPS5s.forEach(psId => {
+        const noOfPlayers = psPlayersMap[psId] || 1;
+
+        const psDiv = document.createElement('div');
+        psDiv.style.cssText = 'padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px;';
+
+        psDiv.innerHTML = `
+            <span>PS ${psId}</span>
+            <label>
+                Players:
+                <select onchange="setPlayersForPS(${psId}, this.value)">
+                    ${[1, 2, 3, 4].map(p => `<option value="${p}" ${p === noOfPlayers ? 'selected' : ''}>${p}</option>`).join('')}
+                </select>
+            </label>
+            <button onclick="removeSelectedPS(${psId})" style="background: rgba(255,69,58,0.2); border: 1px solid rgba(255,69,58,0.5); color: #ff453a; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Remove</button>
         `;
-        selectedPcsList.appendChild(pcDiv);
+
+        selectedPSsList.appendChild(psDiv);
     });
 }
 
-function removeSelectedPC(pcId) {
-    selectedPCs = selectedPCs.filter(id => id !== pcId);
-    document.querySelectorAll('.pc-card').forEach(card => {
-        if (card.querySelector('.pc-number').textContent === `PC ${pcId}`) {
+
+function removeSelectedPS(psId) {
+    selectedPS5s = selectedPS5s.filter(id => id !== psId);
+    document.querySelectorAll('.ps-card').forEach(card => {
+        if (card.querySelector('.ps-number').textContent === `PS ${psId}`) {
             card.classList.remove('selected');
         }
     });
-    updateSelectedPCsList();
+    updateSelectedPSsList();
 
-    if (selectedPCs.length === 0) {
+    if (selectedPS5s.length === 0) {
         cancelSelection();
     }
 }
@@ -572,15 +589,15 @@ function removeSelectedPC(pcId) {
 function cancelSelection() {
     playSound(400, 0.2);
 
-    document.querySelectorAll('.pc-card').forEach(card => {
+    document.querySelectorAll('.ps-card').forEach(card => {
         card.classList.remove('selected');
     });
 
-    selectedPCs = [];
+    selectedPS5s = [];
     document.getElementById('bookSection').classList.remove('show');
 }
 
-async function bookSelectedPCs() {
+async function bookSelectedPSs() {
     const hours = document.getElementById('hoursSelect').value;
     const userName = document.getElementById('userName').value;
     const contactNumber = document.getElementById('contactNumber').value;
@@ -592,13 +609,14 @@ async function bookSelectedPCs() {
 
     const duration = parseInt(hours) * 60;
 
-    const bookings = selectedPCs.map(pcId => ({
-        pcId: `PC${pcId}`,
-        duration
+    const bookings = selectedPS5s.map(psId => ({
+        psId: `PS${psId}`,
+        duration,
+        players: psPlayersMap[psId] || 1
     }));
 
     try {
-        const response = await fetch('http://localhost:3000/api/pc/book', {
+        const response = await fetch('http://localhost:3000/api/ps/book', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -616,8 +634,8 @@ async function bookSelectedPCs() {
         const billPayload = {
             userName,
             contactNo: contactNumber,
-            pcUnits: bookings,
-            type :'pc'
+            psUnits: bookings,
+            type: 'ps',
         };
 
         const billResponse = await fetch('http://localhost:3000/api/bills/create', {
@@ -636,7 +654,7 @@ async function bookSelectedPCs() {
         playSound(800, 0.3);
 
         await updateUnpaidBills();
-        await initializePCCards();
+        await initializePSCards();
         cancelSelection();
 
         document.getElementById('userName').value = '';
@@ -649,7 +667,7 @@ async function bookSelectedPCs() {
     }
 }
 
-async function extendTime(pcId, minutes) {
+async function extendTime(psId, minutes) {
     playSound(600, 0.2);
 
     try {
@@ -658,7 +676,7 @@ async function extendTime(pcId, minutes) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ pcId: `PC${pcId}`, extendTime: minutes, type :'pc' })
+            body: JSON.stringify({ psId: `PS${psId}`, extendTime: minutes, type: 'ps' })
         });
 
         const billData = await billResponse.json();
@@ -669,23 +687,23 @@ async function extendTime(pcId, minutes) {
             console.warn("⚠️ Failed to update bill:", billData.message);
         }
 
-        const bookingResponse = await fetch('http://localhost:3000/api/pc/extend-booking', {
+        const bookingResponse = await fetch('http://localhost:3000/api/ps/extend-booking', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ pcId: `PC${pcId}`, extendDuration: minutes })
+            body: JSON.stringify({ psId: `PS${psId}`, extendDuration: minutes })
         });
 
         const bookingData = await bookingResponse.json();
 
         if (bookingResponse.ok) {
-            console.log("✅ PC duration extended:", bookingData.pc);
+            console.log("✅ PS duration extended:", bookingData.ps);
         } else {
-            console.warn("⚠️ Failed to extend PC booking:", bookingData.message);
+            console.warn("⚠️ Failed to extend PS booking:", bookingData.message);
         }
 
-        updatePCTimes();
+        updatePSTimes();
         updateUnpaidBills();
 
     } catch (error) {
@@ -703,7 +721,7 @@ async function updateUnpaidBills() {
 
         unpaidBillsContainer.innerHTML = '';
 
-        const unpaid = bills.filter(bill => !bill.status && bill.type === 'pc');
+        const unpaid = bills.filter(bill => !bill.status && bill.type === 'ps');
 
         if (unpaid.length === 0) {
             unpaidBillsContainer.innerHTML = '<div style="text-align: center; opacity: 0.6;">No unpaid bills</div>';
@@ -711,15 +729,16 @@ async function updateUnpaidBills() {
         }
 
         unpaid.forEach(bill => {
-            const pcs = bill.pcUnits.map(pc => {
-                const hours = Math.floor(pc.duration / 60);
-                const mins = pc.duration % 60;
+            const pss = bill.psUnits.map(ps => {
+                const hours = Math.floor(ps.duration / 60);
+                const mins = ps.duration % 60;
                 let timeStr = '';
                 if (hours > 0) timeStr += `${hours} hr `;
                 if (mins > 0) timeStr += `${mins} min`;
-                return `${pc.pcId} (${timeStr.trim()})`;
+                const playersStr = ps.players ? ` • ${ps.players}P` : ''; // e.g. " • 2P"
+                return `${ps.psId} (${timeStr.trim()} ${playersStr})`;
             }).join(', ');
-            
+
             const bookingDate = new Date(bill.bookingTime);
             const istTime = bookingDate.toLocaleString('en-IN', {
                 timeZone: 'Asia/Kolkata',
@@ -732,7 +751,7 @@ async function updateUnpaidBills() {
 
             let snacksInfo = '';
             if (bill.snacks && bill.snacks.length > 0) {
-                const snacksList = bill.snacks.map(snack => 
+                const snacksList = bill.snacks.map(snack =>
                     `${snack.name} (${snack.quantity})`
                 ).join(', ');
                 snacksInfo = `<br><small>🍿 Snacks: ${snacksList}</small>`;
@@ -741,9 +760,9 @@ async function updateUnpaidBills() {
             const billDiv = document.createElement('div');
             billDiv.className = 'bill-item';
             billDiv.innerHTML = `
-                <div class="bill-pc">${bill.userName} • ${bill.contactNo}<br></div>
+                <div class="bill-ps">${bill.userName} • ${bill.contactNo}<br></div>
                 <div class="bill-details">
-                    ${pcs}<br>
+                    ${pss}<br>
                     <small>Booked at: ${istTime}</small>
                     ${snacksInfo}
                 </div>
@@ -778,8 +797,8 @@ async function showPaymentModal(billId) {
             timeZone: 'Asia/Kolkata'
         });
 
-        const pcUsageList = bill.pcUnits.map(unit => {
-            return `<div>• ${unit.pcId} - ${unit.duration} mins</div>`;
+        const psUsageList = bill.psUnits.map(unit => {
+            return `<div>• ${unit.psId} - ${unit.duration} mins - ${unit.players}P</div>`;
         }).join('');
 
         let snacksSection = '';
@@ -798,8 +817,8 @@ async function showPaymentModal(billId) {
             <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
             <div><strong>Customer Name:</strong> ${bill.userName}</div>
             <div><strong>Contact No:</strong> ${bill.contactNo}</div>
-            <div><strong>PC Used:</strong></div>
-            <div style="margin-left: 15px;">${pcUsageList}</div>
+            <div><strong>PS Used:</strong></div>
+            <div style="margin-left: 15px;">${psUsageList}</div>
             ${snacksSection}
             <div class="payment-total" style="margin-top: 10px;"><strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}</div>
         `;
@@ -844,7 +863,7 @@ async function confirmPayment() {
         const customerPayload = {
             name: bill.userName,
             contactNo: bill.contactNo,
-            loyaltyPoints: Math.floor(bill.amount / 100)*5
+            loyaltyPoints: Math.floor(bill.amount / 100) * 5
         };
 
         const customerRes = await fetch('http://localhost:3000/api/customer/createOrAdd', {
@@ -863,7 +882,7 @@ async function confirmPayment() {
             console.log('Customer update result:', customerResult.message);
         }
 
-        updatePCTimes();
+        updatePSTimes();
         updateUnpaidBills();
         closePaymentModal();
 
@@ -881,21 +900,21 @@ async function confirmPayment() {
 
 function simulateRealTimeUpdates() {
     setInterval(() => {
-        const randomIndex = Math.floor(Math.random() * pcData.length);
-        const pc = pcData[randomIndex];
+        const randomIndex = Math.floor(Math.random() * psData.length);
+        const ps = psData[randomIndex];
 
-        if (pc.status === 'ending-soon') {
-            const currentTime = parseInt(pc.timeRemaining);
+        if (ps.status === 'ending-soon') {
+            const currentTime = parseInt(ps.timeRemaining);
             if (currentTime > 1) {
-                pc.timeRemaining = (currentTime - 1) + 'm';
+                ps.timeRemaining = (currentTime - 1) + 'm';
             } else {
-                pc.status = 'available';
-                pc.timeRemaining = 'Ready to Play';
+                ps.status = 'available';
+                ps.timeRemaining = 'Ready to Play';
             }
-        } else if (pc.status === 'occupied') {
+        } else if (ps.status === 'occupied') {
             if (Math.random() < 0.02) {
-                pc.status = 'available';
-                pc.timeRemaining = 'Ready to Play';
+                ps.status = 'available';
+                ps.timeRemaining = 'Ready to Play';
             }
         }
     }, 5000);
@@ -903,7 +922,7 @@ function simulateRealTimeUpdates() {
 
 // Initialize
 createParticles();
-initializePCCards();
+initializePSCards();
 updateUnpaidBills();
 simulateRealTimeUpdates();
 
@@ -937,7 +956,7 @@ document.addEventListener('click', function (e) {
         }
     }
 
-    if (!billSelectionModal.querySelector('.bill-selection-content').contains(e.target) && 
+    if (!billSelectionModal.querySelector('.bill-selection-content').contains(e.target) &&
         billSelectionModal.classList.contains('show')) {
         closeBillSelection();
     }

@@ -5,15 +5,32 @@ const billSchema = new mongoose.Schema({
     type: Boolean,
     default: false // false = unpaid, true = paid
   },
+  type: {
+    type: String,
+    enum: ['pc', 'ps'],
+    required: true
+  },
   pcUnits: [
     {
       pcId: {
-        type: String,
-        required: true
+        type: String
       },
       duration: {
-        type: Number, // in minutes
-        required: true
+        type: Number // in minutes
+      }
+    }
+  ],
+  psUnits: [
+    {
+      psId: {
+        type: String
+      },
+      duration: {
+        type: Number // in minutes
+      },
+      players: {
+        type: Number,
+        default: 1
       }
     }
   ],

@@ -21,6 +21,15 @@ body {
     padding: 6px;
     flex: 1;
 }
+.ps-unit-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.ps-unit-row input {
+    padding: 6px;
+    flex: 1;
+}
 /* Animated Background */
 .background {
     position: fixed;

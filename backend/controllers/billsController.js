@@ -3,39 +3,105 @@ const Bill = require('../models/bills.models');
 // Create new bill
 const createBill = async (req, res) => {
     try {
-        const { pcUnits, userName, contactNo } = req.body;
+        const { type, pcUnits, psUnits, userName, contactNo } = req.body;
 
-        if (!pcUnits || !Array.isArray(pcUnits) || pcUnits.length === 0) {
-            return res.status(400).json({ message: 'pcUnits is required and must be a non-empty array.' });
+        if (!type || (type !== 'pc' && type !== 'ps')) {
+            return res.status(400).json({ message: 'type is required and must be either "pc" or "ps"' });
+        }
+
+        if (!userName || !contactNo) {
+            return res.status(400).json({ message: 'userName and contactNo are required' });
+        }
+
+        // Validate units according to type
+        if (type === 'pc') {
+            if (!pcUnits || !Array.isArray(pcUnits) || pcUnits.length === 0) {
+                return res.status(400).json({ message: 'pcUnits is required and must be a non-empty array for type pc.' });
+            }
+        } else {
+            if (!psUnits || !Array.isArray(psUnits) || psUnits.length === 0) {
+                return res.status(400).json({ message: 'psUnits is required and must be a non-empty array for type ps.' });
+            }
         }
 
         // Get current time in IST
         const nowUTC = new Date();
-        // IST is UTC +5:30
         const nowIST = new Date(nowUTC.getTime() + 5.5 * 60 * 60 * 1000);
-
         const hourIST = nowIST.getHours();
 
-        // Set rate based on IST time
-        // Before 10 PM (22:00) → ₹50/hr, else ₹60/hr
-        const ratePerHour = hourIST < 22 ? 50 : 60;
-
-        // Calculate total amount
         let totalAmount = 0;
-        for (const unit of pcUnits) {
-            const durationHours = unit.duration / 60; // convert minutes to hours (fractional)
-            totalAmount += durationHours * ratePerHour;
+
+        if (type === 'pc') {
+            // PC Pricing: before 10 PM ₹50/hr, else ₹60/hr
+            const ratePerHour = hourIST < 22 ? 50 : 60;
+            for (const unit of pcUnits) {
+                const durationHours = unit.duration / 60; // minutes to hours
+                totalAmount += durationHours * ratePerHour;
+            }
+        } else {
+            // PS Pricing:
+            // 4 players: Rs. 40/person/hour
+            // 3 players: Rs. 45/person/hour
+            // 2 players: Rs. 50/person/hour
+            // 1 player: Rs. 100/hour
+            // After 10 PM:
+            // Multiplayer: Rs. 70/person
+            // Single player: Rs. 150
+
+            for (const unit of psUnits) {
+                const { duration, players } = unit;
+                if (!players || typeof players !== 'number' || players < 1) {
+                    return res.status(400).json({ message: 'Each psUnit must have a valid number of players (>=1).' });
+                }
+                const durationHours = duration / 60;
+
+                let ratePerPlayerHour = 0;
+                if (hourIST < 22) {
+                    switch (players) {
+                        case 4:
+                            ratePerPlayerHour = 40;
+                            break;
+                        case 3:
+                            ratePerPlayerHour = 45;
+                            break;
+                        case 2:
+                            ratePerPlayerHour = 50;
+                            break;
+                        case 1:
+                            ratePerPlayerHour = 100;
+                            break;
+                        default:
+                            // If players > 4, treat as 4 players pricing or error
+                            ratePerPlayerHour = 40;
+                    }
+                    totalAmount += durationHours * players * ratePerPlayerHour;
+                } else {
+                    // After 10 PM pricing
+                    if (players === 1) {
+                        totalAmount += 150; // flat rate for single player
+                    } else {
+                        totalAmount += 70 * players; // flat rate per player for multiplayer
+                    }
+                }
+            }
         }
 
-        const bill = new Bill({
+        const billData = {
             status: false,
-            pcUnits,
+            type,
             userName,
             contactNo,
             amount: totalAmount,
             bookingTime: new Date()
-        });
+        };
 
+        if (type === 'pc') {
+            billData.pcUnits = pcUnits;
+        } else {
+            billData.psUnits = psUnits;
+        }
+
+        const bill = new Bill(billData);
         await bill.save();
 
         res.status(201).json({ message: 'Bill created successfully', bill });
@@ -58,48 +124,80 @@ const getAllBills = async (req, res) => {
 
 const extendBill = async (req, res) => {
     try {
-        const { pcId, extendTime } = req.body;
+        const { type, pcId, psId, extendTime } = req.body;
 
         if (![15, 30].includes(extendTime)) {
-            return res.status(200).json({ message: 'extendTime must be 15 or 30 minutes' });
-        }
-        if (!pcId || typeof pcId !== 'string') {
-            return res.status(200).json({ message: 'pcId is required and must be a string' });
+            return res.status(400).json({ message: 'extendTime must be 15 or 30 minutes' });
         }
 
-        // Find unpaid bill containing the pcId in pcUnits
-        const bill = await Bill.findOne({
-            status: false,
-            'pcUnits.pcId': pcId
-        });
-
-        if (!bill) {
-            return res.status(200).json({ message: `No unpaid bill found with PC ID ${pcId}` });
+        if (type !== 'pc' && type !== 'ps') {
+            return res.status(400).json({ message: 'type must be either "pc" or "ps"' });
         }
 
-        // Find the pcUnit inside the bill
-        const pcUnit = bill.pcUnits.find(unit => unit.pcId === pcId);
+        if (type === 'pc') {
+            if (!pcId || typeof pcId !== 'string') {
+                return res.status(400).json({ message: 'pcId is required and must be a string for type "pc"' });
+            }
 
-        if (!pcUnit) {
-            return res.status(200).json({ message: `PC ID ${pcId} not found in the bill's pcUnits` });
+            // Find unpaid bill with this pcId
+            const bill = await Bill.findOne({
+                status: false,
+                type: 'pc',
+                'pcUnits.pcId': pcId
+            });
+
+            if (!bill) {
+                return res.status(404).json({ message: `No unpaid bill found with PC ID ${pcId}` });
+            }
+
+            const pcUnit = bill.pcUnits.find(unit => unit.pcId === pcId);
+            if (!pcUnit) {
+                return res.status(404).json({ message: `PC ID ${pcId} not found in bill` });
+            }
+
+            // Extend duration
+            pcUnit.duration += extendTime;
+
+            // Extend cost for PC
+            let extendCost = extendTime === 15 ? 20 : 25;
+            bill.amount += extendCost;
+
+            await bill.save();
+
+            return res.status(200).json({ message: 'PC bill extended successfully', bill });
+
+        } else {
+            // type === 'ps'
+            if (!psId || typeof psId !== 'string') {
+                return res.status(400).json({ message: 'psId is required and must be a string for type "ps"' });
+            }
+
+            // Find unpaid bill with this psId
+            const bill = await Bill.findOne({
+                status: false,
+                type: 'ps',
+                'psUnits.psId': psId
+            });
+
+            if (!bill) {
+                return res.status(404).json({ message: `No unpaid bill found with PS ID ${psId}` });
+            }
+
+            const psUnit = bill.psUnits.find(unit => unit.psId === psId);
+            if (!psUnit) {
+                return res.status(404).json({ message: `PS ID ${psId} not found in bill` });
+            }
+
+            psUnit.duration += extendTime;
+
+            // Extend cost for PS
+            let extendCost = extendTime === 15 ? 30 : 40;
+            bill.amount += extendCost;
+
+            await bill.save();
+
+            return res.status(200).json({ message: 'PS bill extended successfully', bill });
         }
-
-        // Extend duration
-        pcUnit.duration += extendTime;
-
-        // Calculate additional amount
-        let extendCost = 0;
-        if (extendTime === 15) {
-            extendCost = 20;
-        } else if (extendTime === 30) {
-            extendCost = 25;
-        }
-
-        bill.amount += extendCost;
-
-        await bill.save();
-
-        res.status(200).json({ message: 'Bill extended successfully', bill });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Failed to extend bill' });

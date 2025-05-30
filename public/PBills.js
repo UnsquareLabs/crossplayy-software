@@ -117,11 +117,19 @@ function formatDate(dateString) {
     });
 }
 
-// Format PC Units
-function formatPcUnits(pcUnits) {
-    return pcUnits.map(unit =>
-        `<span class="pc-units">${unit.pcId}: ${unit.duration}min</span>`
-    ).join(' ');
+// Format  Units
+function formatUnits(bill) {
+    // const type = bill.type?.toUpperCase() || 'PC'; // Default to PC if undefined
+    const units = bill.type === 'ps' ? bill.psUnits : bill.pcUnits;
+
+    return units.map(unit => {
+        if (bill.type === 'ps') {
+            const playerInfo = unit.players ? ` (${unit.players}P)` : '';
+            return `<span class="pc-units">${unit.psId}: ${unit.duration}min${playerInfo}</span>`;
+        } else {
+            return `<span class="pc-units">${unit.pcId}: ${unit.duration}min</span>`;
+        }
+    });
 }
 
 // Render bills table
@@ -143,7 +151,7 @@ function renderBills(bills) {
         <tr>
             <td>${bill.userName}</td>
             <td>${bill.contactNo}</td>
-            <td>${formatPcUnits(bill.pcUnits)}</td>
+            <td>${formatUnits(bill)}</td>
             <td>${formatDate(bill.bookingTime)}</td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
             <td><span class="status-badge status-paid">Paid</span></td>
@@ -156,6 +164,7 @@ function renderBills(bills) {
         </tr>
     `).join('');
 }
+
 
 async function editBill(billId) {
     try {
@@ -174,7 +183,12 @@ async function editBill(billId) {
         document.getElementById('editUserName').value = bill.userName;
         document.getElementById('editContactNo').value = bill.contactNo;
         document.getElementById('editAmount').value = bill.amount;
-        renderPcUnitsFields(bill.pcUnits);
+        // Conditionally render units
+        if (bill.type === 'ps') {
+            renderPsUnitsFields(bill.psUnits);
+        } else {
+            renderPcUnitsFields(bill.pcUnits);
+        }
         // Show modal
         document.getElementById('editModal').style.display = 'block';
 
@@ -198,6 +212,22 @@ function renderPcUnitsFields(pcUnits) {
         container.appendChild(pcRow);
     });
 }
+function renderPsUnitsFields(psUnits) {
+    const container = document.getElementById('editPsUnitsContainer');
+    container.innerHTML = ''; // Clear existing
+
+    psUnits.forEach((unit) => {
+        const psRow = document.createElement('div');
+        psRow.className = 'ps-unit-row';
+        psRow.innerHTML = `
+            <input type="text" placeholder="PS ID" value="${unit.psId}" class="ps-id" readonly />
+            <input type="number" placeholder="no of players" value="${unit.players}" class="ps-players" />
+            <input type="number" placeholder="Duration (min)" value="${unit.duration}" class="ps-duration" />
+        `;
+        container.appendChild(psRow);
+    });
+}
+
 
 
 // Fetch and render paid bills
@@ -233,8 +263,8 @@ function setupSearch() {
         const searchTerm = this.value.toLowerCase();
         const filteredBills = billsData.filter(bill =>
             bill.userName.toLowerCase().includes(searchTerm) ||
-            bill.contactNo.includes(searchTerm) ||
-            bill.pcUnits.some(unit => unit.pcId.toLowerCase().includes(searchTerm))
+            bill.contactNo.includes(searchTerm)
+            // bill.pcUnits.some(unit => unit.pcId.toLowerCase().includes(searchTerm))
         );
         renderBills(filteredBills);
         playSound(400, 0.1);
@@ -287,16 +317,33 @@ async function deleteBill(billId) {
 
 // Edit bill
 async function submitBillEdit() {
+    const userName = document.getElementById('editUserName').value;
+    const contactNo = document.getElementById('editContactNo').value;
+    const amount = Number(document.getElementById('editAmount').value);
+
+    const pcUnits = Array.from(document.querySelectorAll('#editPcUnitsContainer .pc-unit-row')).map(row => ({
+        pcId: row.querySelector('.pc-id').value,
+        duration: parseInt(row.querySelector('.pc-duration').value)
+    }));
+
+    const psUnits = Array.from(document.querySelectorAll('#editPsUnitsContainer .ps-unit-row')).map(row => ({
+        psId: row.querySelector('.ps-id').value,
+        duration: parseInt(row.querySelector('.ps-duration').value),
+        players: parseInt(row.querySelector('.ps-players').value)
+    }));
     const updatedBill = {
-        userName: document.getElementById('editUserName').value,
-        contactNo: document.getElementById('editContactNo').value,
-        amount: Number(document.getElementById('editAmount').value),
-        pcUnits: Array.from(document.querySelectorAll('#editPcUnitsContainer .pc-unit-row')).map(row => ({
-            pcId: row.querySelector('.pc-id').value,
-            duration: parseInt(row.querySelector('.pc-duration').value)
-        }))
+        userName,
+        contactNo,
+        amount
     };
 
+    if (pcUnits.length > 0) {
+        updatedBill.pcUnits = pcUnits;
+    }
+
+    if (psUnits.length > 0) {
+        updatedBill.psUnits = psUnits;
+    }
     try {
         const res = await fetch(`http://localhost:3000/api/bills/edit/${currentEditingId}`, {
             method: 'PUT',
