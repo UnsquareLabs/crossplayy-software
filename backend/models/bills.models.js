@@ -49,6 +49,14 @@ const billSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: true
+  },
+  remainingAmt: {
+    type: Number,
+    default: 0 // or omit `default` if you want it to be manually set
+  },
+  paidAmt: {
+    type: Number,
+    default: 0
   }
 });
 
