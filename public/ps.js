@@ -69,7 +69,7 @@ async function startSnacksWorkflow() {
         const response = await fetch('http://localhost:3000/api/bills/all');
         const bills = await response.json();
 
-        const unpaidBills = bills.filter(bill => !bill.status && bill.type=='ps');
+        const unpaidBills = bills.filter(bill => !bill.status && bill.type == 'ps');
 
         if (unpaidBills.length === 0) {
             alert('No unpaid bills available!');
@@ -127,8 +127,13 @@ function selectBillForSnacks(billId, userName, ps5s) {
     selectedBillInfo = { userName, ps5s };
 
     closeBillSelection();
-    openSnacksPanel();
-    playSound(800, 0.2);
+    // Add a small delay to ensure modal is fully hidden
+    setTimeout(() => {
+        openSnacksPanel();
+        playSound(800, 0.2);
+    }, 50); // 50ms delay
+    // openSnacksPanel();
+    // playSound(800, 0.2);
 }
 
 function closeBillSelection() {
@@ -148,6 +153,7 @@ async function openSnacksPanel() {
     }
 
     snacksPanel.classList.add('open');
+    console.log("opened");
 
     // Load snacks data if not already loaded
     if (snacksData.length === 0) {

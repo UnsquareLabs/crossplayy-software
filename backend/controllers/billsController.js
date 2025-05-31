@@ -110,7 +110,7 @@ const getAllBills = async (req, res) => {
         res.status(200).json(bills);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Failed to fetch bills' });
+        res.status(200).json({ message: 'Failed to fetch bills' });
     }
 };
 
