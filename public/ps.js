@@ -205,6 +205,7 @@ function renderSnacksGrid(filteredSnacks = null) {
         return `
             <div class="snack-item" data-category="${snack.category}">
                 <div class="snack-header">
+                <img src="/api/snacks/image/${snack._id}" alt="${snack.name}" class="snack-img-preview" />
                     <div class="snack-info">
                         <h4>${snack.name}</h4>
                         <div class="snack-price">₹${snack.price}</div>
@@ -818,6 +819,14 @@ async function showPaymentModal(billId) {
             `;
         }
 
+        let amountBreakdown = '';
+        if (bill.remainingAmt > 0) {
+            amountBreakdown = `
+        <div><strong>Paid Amount:</strong> ₹${bill.paidAmt}</div>
+        <div><strong>Remaining Amount:</strong> ₹${bill.remainingAmt.toFixed(2)}</div>
+    `;
+        }
+
         const paymentSummary = document.getElementById('paymentSummary');
         paymentSummary.innerHTML = `
             <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
@@ -826,6 +835,7 @@ async function showPaymentModal(billId) {
             <div><strong>PS Used:</strong></div>
             <div style="margin-left: 15px;">${psUsageList}</div>
             ${snacksSection}
+            ${amountBreakdown}
             <div class="payment-total" style="margin-top: 10px;"><strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}</div>
         `;
 

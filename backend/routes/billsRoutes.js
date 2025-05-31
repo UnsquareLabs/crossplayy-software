@@ -9,5 +9,6 @@ router.get('/:id', billController.getBillById);
 router.put('/:id/pay', billController.markBillAsPaid);
 router.put('/edit/:id', billController.editBill);
 router.delete('/delete/:id', billController.deleteBill);
+router.post('/addSnack', billController.addSnacksToBill); // optional route for testing
 
 module.exports = router;

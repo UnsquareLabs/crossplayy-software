@@ -84,6 +84,8 @@ const createBill = async (req, res) => {
             userName,
             contactNo,
             amount: totalAmount,
+            gamingTotal: totalAmount,
+            snacksTotal: 0,
             bookingTime: new Date()
         };
 
@@ -172,9 +174,9 @@ const extendBill = async (req, res) => {
 
                 // Convert to unpaid and reset amounts
                 bill.status = false;
+                bill.paidAmt = bill.amount;
                 bill.amount = 0;
                 bill.remainingAmt = 0;
-                bill.paidAmt = 0;
             }
 
             unit = bill.psUnits.find(u => u.psId === psId);
@@ -189,6 +191,7 @@ const extendBill = async (req, res) => {
         // Add extend cost to amount and remainingAmt
         bill.amount += extendCost;
         bill.remainingAmt += extendCost;
+        bill.gamingTotal += extendCost;
 
         await bill.save();
 
@@ -282,6 +285,45 @@ const editBill = async (req, res) => {
         res.status(500).json({ message: 'Failed to update bill' });
     }
 };
+const addSnacksToBill = async (req, res) => {
+    try {
+        const { billId, snacks } = req.body;
+
+        if (!billId || !Array.isArray(snacks) || snacks.length === 0) {
+            return res.status(400).json({ message: 'billId and a non-empty snacks array are required.' });
+        }
+
+        const bill = await Bill.findById(billId);
+        if (!bill) {
+            return res.status(404).json({ message: 'Bill not found' });
+        }
+
+        // Add snacks to bill
+        const newSnacks = snacks.map(snack => ({
+            name: snack.name,
+            quantity: snack.quantity,
+            price: snack.price
+        }));
+
+        bill.snacks = [...bill.snacks, ...newSnacks];
+
+        // Recalculate snacksTotal
+        const updatedSnacksTotal = bill.snacks.reduce((sum, snack) => {
+            return sum + (snack.quantity * snack.price);
+        }, 0);
+        bill.snacksTotal = updatedSnacksTotal;
+
+        // Total = gamingTotal + snacksTotal
+        bill.amount = (bill.gamingTotal || 0) + updatedSnacksTotal;
+
+        await bill.save();
+
+        res.status(200).json({ message: 'Snacks added to bill', bill });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to add snacks to bill' });
+    }
+};
 
 module.exports = {
     createBill,
@@ -290,5 +332,6 @@ module.exports = {
     markBillAsPaid,
     getBillById,
     deleteBill,
-    editBill
+    editBill,
+    addSnacksToBill
 };

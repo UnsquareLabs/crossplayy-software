@@ -128,8 +128,13 @@ function selectBillForSnacks(billId, userName, pcs) {
     selectedBillInfo = { userName, pcs };
 
     closeBillSelection();
-    openSnacksPanel();
-    playSound(800, 0.2);
+    // Add a small delay to ensure modal is fully hidden
+    setTimeout(() => {
+        openSnacksPanel();
+        playSound(800, 0.2);
+    }, 50); // 50ms delay
+    // openSnacksPanel();
+    // playSound(800, 0.2);
 }
 
 function closeBillSelection() {
@@ -202,6 +207,7 @@ function renderSnacksGrid(filteredSnacks = null) {
         return `
             <div class="snack-item" data-category="${snack.category}">
                 <div class="snack-header">
+                                <img src="/api/snacks/image/${snack._id}" alt="${snack.name}" class="snack-img-preview" />
                     <div class="snack-info">
                         <h4>${snack.name}</h4>
                         <div class="snack-price">₹${snack.price}</div>
@@ -227,6 +233,7 @@ function renderSnacksGrid(filteredSnacks = null) {
 function updateSnackQuantity(snackId, change) {
     const snack = snacksData.find(s => s._id === snackId);
     if (!snack) return;
+    // console.log(snack);
 
     const existingCartItem = snacksCart.find(item => item.id === snackId);
 
@@ -244,8 +251,10 @@ function updateSnackQuantity(snackId, change) {
         });
     }
 
+    console.log(snacksCart);
+
     playSound(change > 0 ? 800 : 400, 0.1);
-    renderSnacksGrid();
+    // renderSnacksGrid();
     updateSnacksCart();
 }
 
@@ -299,46 +308,38 @@ async function addCartToBill() {
     }
 
     try {
-        // Add snacks to bill
-        const response = await fetch(`http://localhost:3000/api/bills/${currentBillId}/add-snacks`, {
-            method: 'PUT',
+        const response = await fetch('http://localhost:3000/api/bills/addSnack', {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ snacks: snacksCart })
+            body: JSON.stringify({
+                billId: currentBillId,
+                snacks: snacksCart
+            })
         });
 
         if (!response.ok) {
             throw new Error('Failed to add snacks to bill');
         }
 
-        // Update snack quantities in database
-        for (const cartItem of snacksCart) {
-            await fetch(`http://localhost:3000/api/snacks/${cartItem.id}/update-quantity`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ quantityUsed: cartItem.quantity })
-            });
-        }
+        const data = await response.json();
 
-        // Success feedback
         playSound(1000, 0.5);
         alert('Snacks added to bill successfully!');
 
-        // Clean up and refresh
+        // Reset cart, close panel, and refresh data
+        clearCart(); // Clear snacksCart and update UI
         closeSnacksPanel();
         updateUnpaidBills();
-
-        // Reload snacks data to reflect updated quantities
-        await loadSnacksData();
+        await loadSnacksData(); // Refresh snacks with updated quantities
 
     } catch (error) {
         console.error('Error adding snacks to bill:', error);
         alert('Failed to add snacks to bill. Please try again.');
     }
 }
+
 
 function setupSnacksSearch() {
     const searchInput = document.getElementById('snacksSearch');

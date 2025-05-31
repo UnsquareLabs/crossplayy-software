@@ -34,6 +34,14 @@ const billSchema = new mongoose.Schema({
       }
     }
   ],
+  gamingTotal: {
+    type: Number,
+    default: 0
+  },
+  snacksTotal: {
+    type: Number,
+    default: 0
+  },
   userName: {
     type: String,
     required: true
@@ -57,7 +65,14 @@ const billSchema = new mongoose.Schema({
   paidAmt: {
     type: Number,
     default: 0
-  }
+  },
+  snacks: [
+    {
+      name: { type: String, required: true },
+      quantity: { type: Number, required: true },
+      price: { type: Number, required: true } // unit price
+    }
+  ]
 });
 
 module.exports = mongoose.model('Bill', billSchema);
