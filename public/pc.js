@@ -847,7 +847,12 @@ async function showPaymentModal(billId) {
             ${snacksSection}
             ${amountBreakdown}
             <div class="payment-total" style="margin-top: 10px;"><strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}</div>
-            
+            <div style="margin-top: 15px;">
+            <label><strong>Cash Payment (₹):</strong></label><br/>
+            <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%; margin-bottom: 10px;" />
+            <label><strong>UPI Payment (₹):</strong></label><br/>
+            <input type="number" id="upiInput" min="0" required style="padding: 5px; width: 100%;" />
+            </div>
         `;
 
         const paymentModal = document.getElementById('paymentModal');
@@ -866,13 +871,16 @@ function closePaymentModal() {
 
 async function confirmPayment() {
     const billId = document.getElementById('paymentModal').dataset.billId;
+    const cash = parseInt(document.getElementById('cashInput').value, 10) || 0;
+    const upi = parseInt(document.getElementById('upiInput').value, 10) || 0;
 
     try {
         const response = await fetch(`http://localhost:3000/api/bills/${billId}/pay`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ cash, upi })
         });
 
         if (!response.ok) {

@@ -229,6 +229,7 @@ const getBillById = async (req, res) => {
 const markBillAsPaid = async (req, res) => {
     try {
         const { id } = req.params;
+        const { cash = 0, upi = 0 } = req.body;
 
         // First, retrieve the bill to get its total amount
         const bill = await Bill.findById(id);
@@ -236,8 +237,17 @@ const markBillAsPaid = async (req, res) => {
             return res.status(200).json({ message: 'Bill not found' });
         }
 
+        const totalDue = bill.amount ;
+        const totalPaid = cash + upi;
+
+        if (totalPaid !== totalDue) {
+            return res.status(400).json({ message: `Total payment (cash + upi = ₹${totalPaid}) must equal total due (₹${totalDue}).` });
+        }
+
         // Update the bill with status = true, paidAmt = amount, remainingAmt = 0
         bill.status = true;
+        bill.cash = cash;
+        bill.upi = upi;
         bill.amount = bill.amount + bill.paidAmt;
         bill.paidAmt = 0;
         bill.remainingAmt = 0;
@@ -314,7 +324,7 @@ const addSnacksToBill = async (req, res) => {
         bill.snacksTotal = updatedSnacksTotal;
 
         // Total = gamingTotal + snacksTotal
-        bill.amount  += updatedSnacksTotal;
+        bill.amount += updatedSnacksTotal;
         bill.remainingAmt += updatedSnacksTotal;
 
         await bill.save();
