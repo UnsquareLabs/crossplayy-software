@@ -28,6 +28,40 @@ const addSnack = async (req, res) => {
         res.status(200).json({ message: 'Failed to add snack' });
     }
 };
+const consumeSnackQuantity = async (req, res) => {
+    try {
+        const { snackId } = req.params;
+        const { usedQuantity } = req.body;
+
+        if (typeof usedQuantity !== 'number' || usedQuantity <= 0) {
+            return res.status(400).json({ message: 'usedQuantity must be a positive number' });
+        }
+
+        const snack = await Snack.findById(snackId);
+
+        if (!snack) {
+            return res.status(404).json({ message: 'Snack not found' });
+        }
+
+        if (usedQuantity > snack.quantity) {
+            return res.status(400).json({
+                message: `Not enough quantity. Current: ${snack.quantity}, Requested: ${usedQuantity}`
+            });
+        }
+
+        snack.quantity -= usedQuantity;
+        await snack.save();
+
+        res.status(200).json({
+            message: 'Snack quantity updated successfully',
+            remainingQuantity: snack.quantity,
+            snack
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to update snack quantity' });
+    }
+};
 
 const editSnackQuantity = async (req, res) => {
     try {
@@ -146,5 +180,6 @@ module.exports = {
     deleteSnack,
     getAllSnacks,
     getSnackImage,
-    editSnackQuantity
+    editSnackQuantity,
+    consumeSnackQuantity
 };

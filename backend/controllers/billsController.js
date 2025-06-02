@@ -314,7 +314,8 @@ const addSnacksToBill = async (req, res) => {
         bill.snacksTotal = updatedSnacksTotal;
 
         // Total = gamingTotal + snacksTotal
-        bill.amount = (bill.gamingTotal || 0) + updatedSnacksTotal;
+        bill.amount  += updatedSnacksTotal;
+        bill.remainingAmt += updatedSnacksTotal;
 
         await bill.save();
 

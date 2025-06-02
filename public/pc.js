@@ -230,7 +230,7 @@ function renderSnacksGrid(filteredSnacks = null) {
     }).join('');
 }
 
-function updateSnackQuantity(snackId, change) {
+async function updateSnackQuantity(snackId, change) {
     const snack = snacksData.find(s => s._id === snackId);
     if (!snack) return;
     // console.log(snack);
@@ -308,6 +308,23 @@ async function addCartToBill() {
     }
 
     try {
+
+        for (const item of snacksCart) {
+            const res = await fetch(`/api/snacks/consume/${item.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ usedQuantity: item.quantity }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                alert(`Error with ${item.name}: ${errData.message}`);
+                return; // Stop the process if any snack fails
+            }
+        }
+
         const response = await fetch('http://localhost:3000/api/bills/addSnack', {
             method: 'POST',
             headers: {
