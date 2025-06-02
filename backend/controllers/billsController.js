@@ -284,7 +284,83 @@ const deleteBill = async (req, res) => {
 const editBill = async (req, res) => {
     try {
         const { id } = req.params;
-        const updatedData = req.body;
+        const { cash = 0, upi = 0, discount = 0, pcUnits = [], psUnits = [] } = req.body;
+
+        // Fetch existing bill
+        const bill = await Bill.findById(id);
+        if (!bill) {
+            return res.status(404).json({ message: 'Bill not found' });
+        }
+
+        // Use bookingTime from bill instead of current time
+        const bookingTimeUTC = new Date(bill.bookingTime);
+        // Convert bookingTime to IST by adding 5.5 hours
+        const bookingTimeIST = new Date(bookingTimeUTC.getTime() + 5.5 * 60 * 60 * 1000);
+        const hourIST = bookingTimeIST.getHours();
+
+        let totalAmount = 0;
+        const type = bill.type;
+
+        if (type === 'pc') {
+            // PC Pricing: before 10 PM ₹50/hr, else ₹60/hr
+            const ratePerHour = hourIST < 22 ? 50 : 60;
+            for (const unit of pcUnits) {
+                const durationHours = unit.duration / 60; // minutes to hours
+                totalAmount += durationHours * ratePerHour;
+            }
+        } else if (type === 'ps') {
+            for (const unit of psUnits) {
+                const { duration, players } = unit;
+                if (!players || typeof players !== 'number' || players < 1) {
+                    return res.status(400).json({ message: 'Each psUnit must have a valid number of players (>=1).' });
+                }
+                const durationHours = duration / 60;
+
+                if (hourIST < 22) {
+                    let ratePerPlayerHour = 0;
+                    switch (players) {
+                        case 4:
+                            ratePerPlayerHour = 40;
+                            break;
+                        case 3:
+                            ratePerPlayerHour = 45;
+                            break;
+                        case 2:
+                            ratePerPlayerHour = 50;
+                            break;
+                        case 1:
+                            ratePerPlayerHour = 100;
+                            break;
+                        default:
+                            ratePerPlayerHour = 40;
+                    }
+                    totalAmount += durationHours * players * ratePerPlayerHour;
+                } else {
+                    // After 10 PM pricing
+                    if (players === 1) {
+                        totalAmount += 150; // flat rate for single player
+                    } else {
+                        totalAmount += 70 * players; // flat rate per player for multiplayer
+                    }
+                }
+            }
+        } else {
+            return res.status(400).json({ message: 'Invalid bill type.' });
+        }
+
+        // Validate cash + upi - discount = totalAmount
+        const totalPaid = Number(cash) + Number(upi) + Number(discount);
+        totalAmount = Math.round(totalAmount);
+        if (totalPaid !== totalAmount) {
+            return res.status(400).json({
+                message: `Invalid payment values: cash + upi - discount = ₹${totalPaid} but recalculated amount is ₹${totalAmount}. They must be equal.`
+            });
+        }
+
+        const updatedData = {
+            ...req.body,
+            amount: totalAmount,
+        };
 
         const updatedBill = await Bill.findByIdAndUpdate(id, updatedData, { new: true });
 

@@ -185,21 +185,23 @@ async function editBill(billId) {
             throw new Error('Failed to fetch bill');
         }
 
-        const data = await res.json();
-        const bill = data;
-
+        const bill = await res.json();
         currentEditingId = billId;
 
-        // Fill modal form with fetched data
-        document.getElementById('editUserName').value = bill.userName;
-        document.getElementById('editContactNo').value = bill.contactNo;
-        document.getElementById('editAmount').value = bill.amount;
+        // Fill form with editable fields
+        document.getElementById('editDiscount').value = bill.discount || 0;
+        document.getElementById('editCash').value = bill.cash || 0;
+        document.getElementById('editUpi').value = bill.upi || 0;
+        // Example inside your editBill after units are loaded
+        toggleUnitGroups(bill.pcUnits, bill.psUnits);
+
         // Conditionally render units
         if (bill.type === 'ps') {
             renderPsUnitsFields(bill.psUnits);
         } else {
             renderPcUnitsFields(bill.pcUnits);
         }
+
         // Show modal
         document.getElementById('editModal').style.display = 'block';
 
@@ -209,33 +211,81 @@ async function editBill(billId) {
     }
 }
 
+function toggleUnitGroups(pcUnits, psUnits) {
+    const pcGroup = document.getElementById('editPcUnitsGroup');
+    const psGroup = document.getElementById('editPsUnitsGroup');
+
+    pcGroup.style.display = (pcUnits && pcUnits.length > 0) ? 'block' : 'none';
+    psGroup.style.display = (psUnits && psUnits.length > 0) ? 'block' : 'none';
+}
+
+
 function renderPcUnitsFields(pcUnits) {
     const container = document.getElementById('editPcUnitsContainer');
-    container.innerHTML = ''; // Clear existing
+    container.innerHTML = '';
 
-    pcUnits.forEach((unit) => {
-        const pcRow = document.createElement('div');
-        pcRow.className = 'pc-unit-row';
-        pcRow.innerHTML = `
-            <input type="text" placeholder="PC ID" value="${unit.pcId}" class="pc-id" readonly />
-            <input type="number" placeholder="Duration (min)" value="${unit.duration}" class="pc-duration" />
+    pcUnits.forEach(unit => {
+        const div = document.createElement('div');
+        div.classList.add('pc-unit-row');
+
+        div.innerHTML = `
+            <input type="hidden" class="pc-id" value="${unit.pcId}" />
+            <label>Duration:</label>
+            <select class="pc-duration" required>
+                <option value="60" ${unit.duration === 60 ? 'selected' : ''}>1 Hour</option>
+                <option value="90" ${unit.duration === 90 ? 'selected' : ''}>1.5 Hour</option>
+                <option value="120" ${unit.duration === 120 ? 'selected' : ''}>2 Hours</option>
+                <option value="150" ${unit.duration === 150 ? 'selected' : ''}>2.5 Hour</option>
+                <option value="180" ${unit.duration === 180 ? 'selected' : ''}>3 Hours</option>
+                <option value="210" ${unit.duration === 210 ? 'selected' : ''}>3.5 Hour</option>
+                <option value="240" ${unit.duration === 240 ? 'selected' : ''}>4 Hours</option>
+                <option value="270" ${unit.duration === 270 ? 'selected' : ''}>4.5 Hour</option>
+                <option value="300" ${unit.duration === 300 ? 'selected' : ''}>5 Hours</option>
+                <option value="330" ${unit.duration === 330 ? 'selected' : ''}>5.5 Hour</option>
+                <option value="360" ${unit.duration === 360 ? 'selected' : ''}>6 Hours</option>
+                <option value="390" ${unit.duration === 390 ? 'selected' : ''}>6.5 Hour</option>
+            </select>
         `;
-        container.appendChild(pcRow);
+
+        container.appendChild(div);
     });
 }
+
 function renderPsUnitsFields(psUnits) {
     const container = document.getElementById('editPsUnitsContainer');
-    container.innerHTML = ''; // Clear existing
+    container.innerHTML = '';
 
-    psUnits.forEach((unit) => {
-        const psRow = document.createElement('div');
-        psRow.className = 'ps-unit-row';
-        psRow.innerHTML = `
-            <input type="text" placeholder="PS ID" value="${unit.psId}" class="ps-id" readonly />
-            <input type="number" placeholder="no of players" value="${unit.players}" class="ps-players" />
-            <input type="number" placeholder="Duration (min)" value="${unit.duration}" class="ps-duration" />
+    psUnits.forEach(unit => {
+        const div = document.createElement('div');
+        div.classList.add('ps-unit-row');
+
+        div.innerHTML = `
+            <input type="hidden" class="ps-id" value="${unit.psId}" />
+            <label>Duration:</label>
+            <select class="ps-duration" required>
+                <option value="60" ${unit.duration === 60 ? 'selected' : ''}>1 Hour</option>
+                <option value="90" ${unit.duration === 90 ? 'selected' : ''}>1.5 Hour</option>
+                <option value="120" ${unit.duration === 120 ? 'selected' : ''}>2 Hours</option>
+                <option value="150" ${unit.duration === 150 ? 'selected' : ''}>2.5 Hour</option>
+                <option value="180" ${unit.duration === 180 ? 'selected' : ''}>3 Hours</option>
+                <option value="210" ${unit.duration === 210 ? 'selected' : ''}>3.5 Hour</option>
+                <option value="240" ${unit.duration === 240 ? 'selected' : ''}>4 Hours</option>
+                <option value="270" ${unit.duration === 270 ? 'selected' : ''}>4.5 Hour</option>
+                <option value="300" ${unit.duration === 300 ? 'selected' : ''}>5 Hours</option>
+                <option value="330" ${unit.duration === 330 ? 'selected' : ''}>5.5 Hour</option>
+                <option value="360" ${unit.duration === 360 ? 'selected' : ''}>6 Hours</option>
+                <option value="390" ${unit.duration === 390 ? 'selected' : ''}>6.5 Hour</option>
+            </select>
+            <label>Players:</label>
+            <select class="ps-players" required>
+                <option value="1" ${unit.players === 1 ? 'selected' : ''}>1</option>
+                <option value="2" ${unit.players === 2 ? 'selected' : ''}>2</option>
+                <option value="3" ${unit.players === 3 ? 'selected' : ''}>3</option>
+                <option value="4" ${unit.players === 4 ? 'selected' : ''}>4</option>
+            </select>
         `;
-        container.appendChild(psRow);
+
+        container.appendChild(div);
     });
 }
 
@@ -328,9 +378,10 @@ async function deleteBill(billId) {
 
 // Edit bill
 async function submitBillEdit() {
-    const userName = document.getElementById('editUserName').value;
-    const contactNo = document.getElementById('editContactNo').value;
-    const amount = Number(document.getElementById('editAmount').value);
+    const cash = Number(document.getElementById('editCash').value) || 0;
+    const upi = Number(document.getElementById('editUpi').value) || 0;
+    const discount = Number(document.getElementById('editDiscount').value) || 0;
+
 
     const pcUnits = Array.from(document.querySelectorAll('#editPcUnitsContainer .pc-unit-row')).map(row => ({
         pcId: row.querySelector('.pc-id').value,
@@ -343,9 +394,9 @@ async function submitBillEdit() {
         players: parseInt(row.querySelector('.ps-players').value)
     }));
     const updatedBill = {
-        userName,
-        contactNo,
-        amount
+        cash,
+        upi,
+        discount
     };
 
     if (pcUnits.length > 0) {
@@ -364,9 +415,19 @@ async function submitBillEdit() {
             body: JSON.stringify(updatedBill)
         });
         if (!res.ok) {
-            const text = await res.text();
-            console.error('Non-OK response:', text);
-            throw new Error('Failed to update bill');
+            // Try to parse error message from response body
+            let errorMessage = 'Failed to update bill';
+            try {
+                const errorData = await res.json();
+                if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+            } catch (e) {
+                // parsing failed, keep default error message
+            }
+
+            alert(errorMessage);
+            // throw new Error(errorMessage);
         }
 
         // Only parse JSON if there's content
@@ -382,7 +443,7 @@ async function submitBillEdit() {
         alert('✓ Bill updated successfully!');
     } catch (error) {
         console.error('Error updating bill:', error);
-        alert('Failed to update bill. Check your input and try again.');
+        alert();
     }
 }
 
@@ -390,6 +451,16 @@ async function submitBillEdit() {
 function closeModal() {
     document.getElementById('editModal').style.display = 'none';
     currentEditingId = null;
+    document.getElementById('editCash').value = '';
+    document.getElementById('editUpi').value = '';
+    document.getElementById('editDiscount').value = '';
+    // Clear PC units container
+    const pcContainer = document.getElementById('editPcUnitsContainer');
+    pcContainer.innerHTML = '';
+
+    // Clear PS units container
+    const psContainer = document.getElementById('editPsUnitsContainer');
+    psContainer.innerHTML = '';
     playSound(400, 0.1);
 }
 

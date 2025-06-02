@@ -95,25 +95,32 @@
             <h3>Edit Bill Details</h3>
             <form id="editForm">
                 <div class="form-group">
-                    <label for="editUserName">Customer Name</label>
-                    <input type="text" id="editUserName" required>
+                    <label for="editDiscount">Discount (₹)</label>
+                    <input type="number" id="editDiscount" min="0" required>
                 </div>
-                <div class="form-group">
-                    <label for="editContactNo">Contact Number</label>
-                    <input type="text" id="editContactNo" required>
+
+                <div class="form-group" style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label for="editCash">Cash (₹)</label>
+                        <input type="number" id="editCash" min="0" required>
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="editUpi">UPI (₹)</label>
+                        <input type="number" id="editUpi" min="0" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="editAmount">Amount (₹)</label>
-                    <input type="number" id="editAmount" required>
-                </div>
-                <div class="form-group">
-                    <label for="editPcUnits">PC Units</label>
+
+                <div id="editPcUnitsGroup" class="form-group">
+                    <label>PC Units Duration (mins)</label>
                     <div id="editPcUnitsContainer"></div>
                 </div>
-                <div class="form-group">
-                    <label for="editPcUnits">PS5 Units</label>
+
+                <div id="editPsUnitsGroup" class="form-group">
+                    <label>PS5 Units Duration (mins)</label>
                     <div id="editPsUnitsContainer"></div>
                 </div>
+
+
                 <div class="modal-buttons">
                     <button type="submit" class="modal-btn save-btn">Save Changes</button>
                     <button type="button" class="modal-btn cancel-btn" onclick="closeModal()">Cancel</button>
@@ -121,6 +128,7 @@
             </form>
         </div>
     </div>
+
     <script src="PBills.js"></script>
 
 </body>
