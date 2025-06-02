@@ -36,6 +36,7 @@ const createBill = async (req, res) => {
             const ratePerHour = hourIST < 22 ? 50 : 60;
             for (const unit of pcUnits) {
                 const durationHours = unit.duration / 60; // minutes to hours
+                // console.log(durationHours);
                 totalAmount += durationHours * ratePerHour;
             }
         } else {

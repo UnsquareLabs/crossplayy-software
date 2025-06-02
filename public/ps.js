@@ -605,7 +605,7 @@ function cancelSelection() {
 }
 
 async function bookSelectedPSs() {
-    const hours = document.getElementById('hoursSelect').value;
+    const hours = parseFloat(document.getElementById('hoursSelect').value);
     const userName = document.getElementById('userName').value;
     const contactNumber = document.getElementById('contactNumber').value;
 
@@ -614,7 +614,7 @@ async function bookSelectedPSs() {
         return;
     }
 
-    const duration = parseInt(hours) * 60;
+    const duration = (hours) * 60;
 
     const bookings = selectedPS5s.map(psId => ({
         psId: `PS${psId}`,
@@ -876,7 +876,8 @@ async function confirmPayment() {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to update bill status');
+            alert(errorData.message || 'Failed to update bill status');
+            return;
         }
 
         const billRes = await fetch(`http://localhost:3000/api/bills/${billId}`);
