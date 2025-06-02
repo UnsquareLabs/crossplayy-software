@@ -836,13 +836,23 @@ async function showPaymentModal(billId) {
             <div style="margin-left: 15px;">${psUsageList}</div>
             ${snacksSection}
             ${amountBreakdown}
-            <div class="payment-total" style="margin-top: 10px;"><strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}</div>
             <div style="margin-top: 15px;">
+        <label><strong>Discount (₹):</strong></label><br/>
+        <input type="number" id="discountInput" min="0" value="0" style="padding: 5px; width: 100%; margin-bottom: 15px;" />
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+        <div style="flex: 1;">
             <label><strong>Cash Payment (₹):</strong></label><br/>
-            <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%; margin-bottom: 10px;" />
+            <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%;" />
+        </div>
+        <div style="flex: 1;">
             <label><strong>UPI Payment (₹):</strong></label><br/>
             <input type="number" id="upiInput" min="0" required style="padding: 5px; width: 100%;" />
-            </div>
+        </div>
+    </div> 
+            <div class="payment-total" style="margin-top: 10px;"><strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}</div>
+            
 
         `;
 
@@ -864,6 +874,7 @@ async function confirmPayment() {
     const billId = document.getElementById('paymentModal').dataset.billId;
     const cash = parseInt(document.getElementById('cashInput').value, 10) || 0;
     const upi = parseInt(document.getElementById('upiInput').value, 10) || 0;
+    const discount = parseInt(document.getElementById('discountInput').value, 10) || 0;
 
     try {
         const response = await fetch(`http://localhost:3000/api/bills/${billId}/pay`, {
@@ -871,7 +882,7 @@ async function confirmPayment() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ cash, upi })
+            body: JSON.stringify({ cash, upi, discount })
         });
 
         if (!response.ok) {
@@ -890,7 +901,7 @@ async function confirmPayment() {
         const customerPayload = {
             name: bill.userName,
             contactNo: bill.contactNo,
-            loyaltyPoints: Math.floor(bill.amount / 100) * 5
+            loyaltyPoints: Math.floor(bill.gamingTotal / 100) * 5
         };
 
         const customerRes = await fetch('http://localhost:3000/api/customer/createOrAdd', {
