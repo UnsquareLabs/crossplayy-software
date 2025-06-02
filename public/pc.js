@@ -841,21 +841,36 @@ async function showPaymentModal(billId) {
 
         const paymentSummary = document.getElementById('paymentSummary');
         paymentSummary.innerHTML = `
-            <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
-            <div><strong>Customer Name:</strong> ${bill.userName}</div>
-            <div><strong>Contact No:</strong> ${bill.contactNo}</div>
-            <div><strong>PC Used:</strong></div>
-            <div style="margin-left: 15px;">${pcUsageList}</div>
-            ${snacksSection}
-            ${amountBreakdown}
-            <div class="payment-total" style="margin-top: 10px;"><strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}</div>
-            <div style="margin-top: 15px;">
+    <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
+    <div><strong>Customer Name:</strong> ${bill.userName}</div>
+    <div><strong>Contact No:</strong> ${bill.contactNo}</div>
+    <div><strong>PC Used:</strong></div>
+    <div style="margin-left: 15px;">${pcUsageList}</div>
+    ${snacksSection}
+    ${amountBreakdown}
+   
+
+    <div style="margin-top: 15px;">
+        <label><strong>Discount (₹):</strong></label><br/>
+        <input type="number" id="discountInput" min="0" value="0" style="padding: 5px; width: 100%; margin-bottom: 15px;" />
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+        <div style="flex: 1;">
             <label><strong>Cash Payment (₹):</strong></label><br/>
-            <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%; margin-bottom: 10px;" />
+            <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%;" />
+        </div>
+        <div style="flex: 1;">
             <label><strong>UPI Payment (₹):</strong></label><br/>
             <input type="number" id="upiInput" min="0" required style="padding: 5px; width: 100%;" />
-            </div>
-        `;
+        </div>
+    </div> 
+    <div class="payment-total" style="margin-top: 10px;">
+        <strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}
+    </div>
+`;
+
+
 
         const paymentModal = document.getElementById('paymentModal');
         paymentModal.classList.add('show');
@@ -875,6 +890,7 @@ async function confirmPayment() {
     const billId = document.getElementById('paymentModal').dataset.billId;
     const cash = parseInt(document.getElementById('cashInput').value, 10) || 0;
     const upi = parseInt(document.getElementById('upiInput').value, 10) || 0;
+    const discount = parseInt(document.getElementById('discountInput').value, 10) || 0;
 
     try {
         const response = await fetch(`http://localhost:3000/api/bills/${billId}/pay`, {
@@ -882,7 +898,7 @@ async function confirmPayment() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ cash, upi })
+            body: JSON.stringify({ cash, upi, discount })
         });
 
         if (!response.ok) {

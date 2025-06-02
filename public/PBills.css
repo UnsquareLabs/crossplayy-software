@@ -705,5 +705,17 @@ body {
         margin: 2px;
     }
 
+    td.payment-mode {
+        font-size: 13px;
+        line-height: 1.3;
+        color: #444;
+    }
+
+    td.payment-mode div {
+        background: #f1f1f1;
+        padding: 4px 6px;
+        margin: 2px 0;
+        border-radius: 6px;
+    }
 
 }
