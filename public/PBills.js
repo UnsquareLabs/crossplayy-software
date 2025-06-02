@@ -159,6 +159,10 @@ function renderBills(bills) {
         }
 </td>
             <td>${formatDate(bill.bookingTime)}</td>
+            <td class="payment-mode">
+        <div>Cash: ₹${bill.cash || 0}</div>
+        <div>UPI: ₹${bill.upi || 0}</div>
+    </td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
             <td><span class="status-badge status-paid">Paid</span></td>
             <td>
