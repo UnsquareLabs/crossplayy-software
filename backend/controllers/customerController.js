@@ -57,6 +57,22 @@ const getAllCustomers = async (req, res) => {
         res.status(500).json({ message: 'Error fetching customers' });
     }
 };
+const getCustomerWalletByPhone = async (req, res) => {
+    try {
+        const { contactNo } = req.params;
+
+        const customer = await Customer.findOne({ contactNo });
+
+        if (!customer) {
+            return res.status(404).json({ message: 'Customer not found' });
+        }
+
+        res.status(200).json({ walletCredit: customer.walletCredit });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching customer wallet credit' });
+    }
+};
 
 const updateCustomer = async (req, res) => {
     try {
@@ -94,5 +110,6 @@ module.exports = {
     onlyCreateCustomer,
     getAllCustomers,
     updateCustomer,
-    deleteCustomer
+    deleteCustomer,
+    getCustomerWalletByPhone
 };

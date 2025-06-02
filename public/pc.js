@@ -815,6 +815,19 @@ async function showPaymentModal(billId) {
             hour12: false,
             timeZone: 'Asia/Kolkata'
         });
+        const contactNo = bill.contactNo;
+
+        fetch(`/api/customer/wallet/${contactNo}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.walletCredit !== undefined) {
+                    const walletDisplay = document.getElementById('walletCreditDisplay');
+                    walletDisplay.innerHTML = `Available Wallet Credit: ₹${data.walletCredit}`;
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching wallet credit:', err);
+            });
 
         const pcUsageList = bill.pcUnits.map(unit => {
             return `<div>• ${unit.pcId} - ${unit.duration} mins</div>`;
@@ -848,7 +861,13 @@ async function showPaymentModal(billId) {
     <div style="margin-left: 15px;">${pcUsageList}</div>
     ${snacksSection}
     ${amountBreakdown}
-   
+   <div id="walletSection" style="margin: 15px 0;">
+    <label>
+        <input type="checkbox" id="useWalletCheckbox" />
+        <strong>Use Wallet Credit</strong>
+    </label>
+    <div id="walletCreditDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
+</div>
 
     <div style="margin-top: 15px;">
         <label><strong>Discount (₹):</strong></label><br/>
@@ -891,6 +910,19 @@ async function confirmPayment() {
     const cash = parseInt(document.getElementById('cashInput').value, 10) || 0;
     const upi = parseInt(document.getElementById('upiInput').value, 10) || 0;
     const discount = parseInt(document.getElementById('discountInput').value, 10) || 0;
+    const useWallet = document.getElementById('useWalletCheckbox').checked;
+    let wallet = 0;
+
+    if (useWallet) {
+        const walletText = document.getElementById('walletCreditDisplay').innerText;
+        const match = walletText.match(/₹(\d+)/); // Extract number from "Available Wallet Credit: ₹xxx"
+        if (match && match[1]) {
+            wallet = parseInt(match[1], 10);
+        }
+    }
+    else{
+        wallet=-1;
+    }
 
     try {
         const response = await fetch(`http://localhost:3000/api/bills/${billId}/pay`, {
@@ -898,7 +930,7 @@ async function confirmPayment() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ cash, upi, discount })
+            body: JSON.stringify({ cash, upi, discount, wallet })
         });
 
         if (!response.ok) {

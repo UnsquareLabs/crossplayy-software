@@ -85,6 +85,7 @@ const createBill = async (req, res) => {
             userName,
             contactNo,
             amount: totalAmount,
+            remainingAmt:totalAmount,
             gamingTotal: totalAmount,
             snacksTotal: 0,
             bookingTime: new Date()
@@ -230,7 +231,7 @@ const getBillById = async (req, res) => {
 const markBillAsPaid = async (req, res) => {
     try {
         const { id } = req.params;
-        const { cash = 0, upi = 0, discount = 0 } = req.body;
+        let { cash = 0, upi = 0, discount = 0, wallet = 0 } = req.body;
 
         // First, retrieve the bill to get its total amount
         const bill = await Bill.findById(id);
@@ -238,8 +239,11 @@ const markBillAsPaid = async (req, res) => {
             return res.status(200).json({ message: 'Bill not found' });
         }
 
+        if(wallet==-1){
+            wallet=0;
+        }
         const totalDue = bill.amount;
-        const totalPaid = cash + upi;
+        const totalPaid = cash + upi + wallet;
         const effectivePaid = totalDue - discount;
 
         if (effectivePaid !== totalPaid) {
@@ -251,6 +255,7 @@ const markBillAsPaid = async (req, res) => {
         bill.cash = cash;
         bill.upi = upi;
         bill.discount = discount;
+        bill.wallet = wallet;
         bill.amount = bill.amount + bill.paidAmt;
         bill.paidAmt = 0;
         bill.remainingAmt = 0;
@@ -284,7 +289,7 @@ const deleteBill = async (req, res) => {
 const editBill = async (req, res) => {
     try {
         const { id } = req.params;
-        const { cash = 0, upi = 0, discount = 0, pcUnits = [], psUnits = [] } = req.body;
+        const { cash = 0, upi = 0, wallet = 0, discount = 0, pcUnits = [], psUnits = [] } = req.body;
 
         // Fetch existing bill
         const bill = await Bill.findById(id);
@@ -349,7 +354,7 @@ const editBill = async (req, res) => {
         }
 
         // Validate cash + upi - discount = totalAmount
-        const totalPaid = Number(cash) + Number(upi) + Number(discount);
+        const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(discount);
         totalAmount = Math.round(totalAmount);
         if (totalPaid !== totalAmount) {
             return res.status(400).json({
@@ -374,6 +379,7 @@ const editBill = async (req, res) => {
         res.status(500).json({ message: 'Failed to update bill' });
     }
 };
+
 const addSnacksToBill = async (req, res) => {
     try {
         const { billId, snacks } = req.body;
@@ -398,7 +404,7 @@ const addSnacksToBill = async (req, res) => {
 
         // Recalculate snacksTotal
         const updatedSnacksTotal = bill.snacks.reduce((sum, snack) => {
-            return sum + (snack.quantity * snack.price);
+            return  (snack.quantity * snack.price);
         }, 0);
         bill.snacksTotal = updatedSnacksTotal;
 

@@ -78,6 +78,10 @@ const billSchema = new mongoose.Schema({
     type: Number,
     default: 0 // discount amount in ₹
   },
+  wallet: {
+    type: Number,
+    default: 0 // discount amount in ₹
+  },
   snacks: [
     {
       name: { type: String, required: true },

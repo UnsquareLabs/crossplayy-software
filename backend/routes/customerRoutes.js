@@ -7,5 +7,6 @@ router.post('/onlyCreate', customerController.onlyCreateCustomer);
 router.get('/all', customerController.getAllCustomers);
 router.put('/edit/:id', customerController.updateCustomer);
 router.delete('/delete/:id', customerController.deleteCustomer);
+router.get('/wallet/:contactNo', customerController.getCustomerWalletByPhone);
 
 module.exports = router;
