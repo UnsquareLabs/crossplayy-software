@@ -28,7 +28,7 @@ const createCustomerOrAdd = async (req, res) => {
 };
 const onlyCreateCustomer = async (req, res) => {
     try {
-        const { name, contactNo, loyaltyPoints = 0 } = req.body;
+        const { name, contactNo, loyaltyPoints = 0, walletCredit = 0 } = req.body;
 
         if (!name || !contactNo) {
             return res.status(400).json({ message: 'Name and contactNo are required' });
@@ -40,7 +40,7 @@ const onlyCreateCustomer = async (req, res) => {
             return res.status(200).json({ message: 'Customer phone no already exists in db', customer: existingCustomer });
         }
 
-        const newCustomer = new Customer({ name, contactNo, loyaltyPoints });
+        const newCustomer = new Customer({ name, contactNo, loyaltyPoints, walletCredit });
         await newCustomer.save();
         res.status(201).json({ message: 'Customer created', customer: newCustomer });
 

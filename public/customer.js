@@ -143,6 +143,9 @@ function renderCustomers(customers) {
                         ${customer.loyaltyPoints} 
                     </td>
                     <td>${formatDate(customer.createdAt)}</td>
+                    <td class="Wallet-Credit">
+                        ${customer.walletCredit} 
+                    </td>
                     <td>
                         <div class="action-buttons">
                             <button class="action-btn edit-btn" onclick="editCustomer('${customer._id}')">Edit</button>
@@ -217,6 +220,7 @@ async function editCustomer(customerId) {
         document.getElementById('customerName').value = customer.name;
         document.getElementById('customerContact').value = customer.contactNo;
         document.getElementById('customerLoyalty').value = customer.loyaltyPoints;
+        document.getElementById('customerWallet').value = customer.walletCredit;
 
         document.getElementById('customerModal').style.display = 'block';
     } catch (error) {
@@ -263,7 +267,8 @@ document.getElementById('customerForm').addEventListener('submit', async functio
     const customerData = {
         name: document.getElementById('customerName').value.trim(),
         contactNo: document.getElementById('customerContact').value.trim(),
-        loyaltyPoints: parseInt(document.getElementById('customerLoyalty').value) || 0
+        loyaltyPoints: parseInt(document.getElementById('customerLoyalty').value) || 0,
+        walletCredit: parseInt(document.getElementById('customerWallet').value) || 0
     };
 
     try {

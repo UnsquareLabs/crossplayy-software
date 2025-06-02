@@ -15,6 +15,14 @@ const customerSchema = new mongoose.Schema({
     loyaltyPoints: {
         type: Number,
         default: 0
+    },
+    walletCredit: {
+        type: Number,
+        default: 0,       // default value 0
+        validate: {
+            validator: Number.isInteger,
+            message: '{VALUE} is not an integer value'
+        }
     }
 }, {
     timestamps: true

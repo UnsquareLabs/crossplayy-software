@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CROSSPLAY - Customer Database</title>
     <link rel="stylesheet" href="customer.css">
- 
+
 </head>
 
 <body>
@@ -35,12 +35,11 @@
             <div class="menu-subtitle">Gaming Portal</div>
         </div>
         <div class="menu-items">
-            <a href="pc.html" class="menu-item">🎮 Dashboard</a>
-            <a href="paid-bills.html" class="menu-item">💰 Paid Bills</a>
-            <a href="unpaid-bills.html" class="menu-item">📋 Unpaid Bills</a>
+            <a href="pc.html" class="menu-item">🎮 PC</a>
+            <a href="ps.html" class="menu-item">🎮 PS5</a>
+            <a href="PBills.html" class="menu-item">💰 Paid Bills</a>
             <a href="customers.html" class="menu-item active">👥 Customers</a>
-            <a href="reports.html" class="menu-item">📊 Reports</a>
-            <a href="settings.html" class="menu-item">⚙️ Settings</a>
+            <a href="analytics.html" class="menu-item">📊 Reports</a>
             <a href="login.html" class="menu-item">🚪 Logout</a>
         </div>
     </nav>
@@ -79,6 +78,7 @@
                         <th>Contact Number</th>
                         <th>Loyalty Points</th>
                         <th>Member Since</th>
+                        <th>Wallet Credit</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -106,6 +106,10 @@
                     <label for="customerLoyalty">Loyalty Points</label>
                     <input type="number" id="customerLoyalty" min="0" value="0">
                 </div>
+                <div class="form-group">
+                    <label for="customerWallet">Wallet Credit</label>
+                    <input type="number" id="customerWallet" min="0" value="0">
+                </div>
                 <div class="modal-buttons">
                     <button type="submit" class="modal-btn save-btn">Save Customer</button>
                     <button type="button" class="modal-btn cancel-btn" onclick="closeModal()">Cancel</button>
@@ -114,7 +118,7 @@
         </div>
     </div>
 
-   <script src = "customer.js"></script>
+    <script src="customer.js"></script>
 </body>
 
 </html>
