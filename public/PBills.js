@@ -152,6 +152,12 @@ function renderBills(bills) {
             <td>${bill.userName}</td>
             <td>${bill.contactNo}</td>
             <td>${formatUnits(bill)}</td>
+            <td class="snacks-cell">
+  ${bill.snacks && bill.snacks.length > 0
+            ? bill.snacks.map(s => `<span>${s.name}(${s.quantity})</span>`).join(' ')
+            : '—'
+        }
+</td>
             <td>${formatDate(bill.bookingTime)}</td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
             <td><span class="status-badge status-paid">Paid</span></td>

@@ -66,6 +66,14 @@ const billSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  cash: {
+    type: Number,
+    default: 0
+  },
+  upi: {
+    type: Number,
+    default: 0
+  },
   snacks: [
     {
       name: { type: String, required: true },

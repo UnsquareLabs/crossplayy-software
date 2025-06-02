@@ -12,24 +12,29 @@ body {
     color: #333;
     overflow-x: hidden;
 }
+
 .pc-unit-row {
     display: flex;
     gap: 10px;
     margin-bottom: 10px;
 }
+
 .pc-unit-row input {
     padding: 6px;
     flex: 1;
 }
+
 .ps-unit-row {
     display: flex;
     gap: 10px;
     margin-bottom: 10px;
 }
+
 .ps-unit-row input {
     padding: 6px;
     flex: 1;
 }
+
 /* Animated Background */
 .background {
     position: fixed;
@@ -683,4 +688,22 @@ body {
     .header-content {
         padding: 0 20px;
     }
+
+    td.snacks-cell {
+        font-size: 14px;
+        line-height: 1.4;
+        color: #333;
+    }
+
+    td.snacks-cell span {
+        font-size: 12px;
+        color: #666;
+        background: rgba(0, 123, 255, 0.1);
+        padding: 4px 8px;
+        border-radius: 10px;
+        display: inline-block;
+        margin: 2px;
+    }
+
+
 }
