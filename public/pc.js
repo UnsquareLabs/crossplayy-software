@@ -180,6 +180,7 @@ async function loadSnacksData() {
         }
 
         snacksData = await response.json();
+        console.log(snacksData);
         renderSnacksGrid();
         setupSnacksSearch();
         setupCategoryFilter();
@@ -201,6 +202,8 @@ function renderSnacksGrid(filteredSnacks = null) {
 
     snacksGrid.innerHTML = snacksToRender.map(snack => {
         const cartItem = snacksCart.find(item => item.id === snack._id);
+
+        // console.log(snack.id);
         const quantityInCart = cartItem ? cartItem.quantity : 0;
         const isOutOfStock = snack.quantity <= 0;
 
@@ -220,7 +223,7 @@ function renderSnacksGrid(filteredSnacks = null) {
                     <div class="quantity-controls">
                         <button class="qty-btn" onclick="updateSnackQuantity('${snack._id}', -1)" 
                                 ${quantityInCart <= 0 ? 'disabled' : ''}>-</button>
-                        <div class="quantity-display">${quantityInCart}</div>
+                        <div class="quantity-display" >${quantityInCart}</div>
                         <button class="qty-btn" onclick="updateSnackQuantity('${snack._id}', 1)" 
                                 ${isOutOfStock || quantityInCart >= snack.quantity ? 'disabled' : ''}>+</button>
                     </div>
@@ -231,7 +234,7 @@ function renderSnacksGrid(filteredSnacks = null) {
 }
 
 async function updateSnackQuantity(snackId, change) {
-    const snack = snacksData.find(s => s._id === snackId);
+    const snack = snacksData.find(snacks => snacks._id === snackId);
     if (!snack) return;
     // console.log(snack);
 
@@ -250,8 +253,21 @@ async function updateSnackQuantity(snackId, change) {
             quantity: 1
         });
     }
-
     console.log(snacksCart);
+
+    const updatedQuantity = snacksCart.find(item => item.id === snackId)?.quantity || 0;
+
+    // Update the quantity number
+    const snackItemElement = document.querySelector(`[onclick="updateSnackQuantity('${snackId}', -1)"]`)?.closest('.snack-item');
+    if (snackItemElement) {
+        const qtyDisplay = snackItemElement.querySelector('.quantity-display');
+        const minusBtn = snackItemElement.querySelector(`.qty-btn[onclick="updateSnackQuantity('${snackId}', -1)"]`);
+        const plusBtn = snackItemElement.querySelector(`.qty-btn[onclick="updateSnackQuantity('${snackId}', 1)"]`);
+
+        qtyDisplay.textContent = updatedQuantity;
+        minusBtn.disabled = updatedQuantity <= 0;
+        plusBtn.disabled = updatedQuantity >= snack.quantity;
+    }
 
     playSound(change > 0 ? 800 : 400, 0.1);
     // renderSnacksGrid();
