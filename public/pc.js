@@ -470,6 +470,7 @@ async function initializePCCards() {
             </div>
             <div class="pc-time">Checking...</div>
             <div class="extend-buttons"></div>
+            <div class="unfreeze-button"></div>
         `;
 
         pcGrid.appendChild(pcCard);
@@ -479,12 +480,39 @@ async function initializePCCards() {
     setInterval(updatePCTimes, 60000);
 }
 
+async function unfreezePC(formattedPcId) {
+    const pcId = formattedPcId.toString().startsWith('pc') ? formattedPcId : `PC${formattedPcId}`;
+    try {
+        const res = await fetch('http://localhost:3000/api/pc/unfreeze', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pcId })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert(`✓ PC ${pcId} unfrozen successfully.`);
+            // Optionally re-render the PC cards
+            updatePCTimes();
+            console.log(formattedPcId);
+        } else {
+            alert(`Failed to unfreeze PC: ${data.message}`);
+        }
+    } catch (err) {
+        console.error('Error unfreezing PC:', err);
+        alert('An unexpected error occurred.');
+    }
+}
+
 async function updatePCTimes() {
     for (const pc of pcData) {
         const card = document.getElementById(`pc-card-${pc.id}`);
         const statusDiv = card.querySelector('.pc-status');
         const timeDiv = card.querySelector('.pc-time');
         const extendDiv = card.querySelector('.extend-buttons');
+        const unfreeze = card.querySelector('.unfreeze-button');
 
         const { status, timeRemaining } = await fetchPCStatus(pc.id);
 
@@ -501,8 +529,12 @@ async function updatePCTimes() {
                 <button class="extend-btn" onclick="confirmExtend(${pc.id}, 15); event.stopPropagation();">+15m</button>
                 <button class="extend-btn" onclick="confirmExtend(${pc.id}, 30); event.stopPropagation();">+30m</button>
             `;
+            unfreeze.innerHTML = `
+                <button class="unfreeze-btn" onclick="event.stopPropagation(); unfreezePC('${pc.id}')">Unfreeze</button>
+            `
         } else {
             extendDiv.innerHTML = '';
+            unfreeze.innerHTML = '';
         }
     }
 
@@ -920,8 +952,8 @@ async function confirmPayment() {
             wallet = parseInt(match[1], 10);
         }
     }
-    else{
-        wallet=-1;
+    else {
+        wallet = -1;
     }
 
     try {

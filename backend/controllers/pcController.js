@@ -144,10 +144,39 @@ const extendPCBooking = async (req, res) => {
         res.status(500).json({ message: 'Failed to extend booking' });
     }
 };
+const unbookPC = async (req, res) => {
+    try {
+        const { pcId } = req.body;
+
+        if (!pcId) {
+            return res.status(400).json({ message: 'pcId is required' });
+        }
+
+        const updatedPC = await PC.findOneAndUpdate(
+            { pcId },
+            {
+                status: false,
+                bookingTime: null,
+                duration: 0,
+            },
+            { new: true }
+        );
+
+        if (!updatedPC) {
+            return res.status(404).json({ message: `PC with ID ${pcId} not found` });
+        }
+
+        res.status(200).json({ message: 'PC unfrozen successfully', pc: updatedPC });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to unfreeze PC' });
+    }
+};
 
 module.exports = {
     bookPC,
     getTimeLeft,
     createPC,
-    extendPCBooking
+    extendPCBooking,
+    unbookPC
 };
