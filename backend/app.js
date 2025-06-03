@@ -10,6 +10,7 @@ const billRoutes = require('./routes/billsRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const snackRoutes = require('./routes/snacksRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const editLogsRoutes = require('./routes/editLogsRoutes');
 
 // Load env variables
 dotenv.config();
@@ -35,6 +36,8 @@ app.use('/api/bills', billRoutes);
 app.use('/api/customer', customerRoutes );
 app.use('/api/snacks', snackRoutes);
 app.use('/api/analytics',analyticsRoutes);
+app.use('/api/analytics',analyticsRoutes);
+app.use('/api/edit', editLogsRoutes);
 
 // Basic error handling middleware (optional)
 app.use((err, req, res, next) => {

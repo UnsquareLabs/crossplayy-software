@@ -187,12 +187,10 @@ async function editBill(billId) {
     try {
         console.log("Editing bill ID:", billId);
         const res = await fetch(`http://localhost:3000/api/bills/${billId}`, {
-            method: 'PUT',
+            method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${token}`
             },
-
         });
         if (!res.ok) {
             throw new Error('Failed to fetch bill');
@@ -401,6 +399,8 @@ async function deleteBill(billId) {
 
 // Edit bill
 async function submitBillEdit() {
+
+
     const cash = Number(document.getElementById('editCash').value) || 0;
     const upi = Number(document.getElementById('editUpi').value) || 0;
     const discount = Number(document.getElementById('editDiscount').value) || 0;
@@ -430,6 +430,22 @@ async function submitBillEdit() {
         updatedBill.psUnits = psUnits;
     }
     try {
+        // 🔁 Step 1: Log the old bill before updating
+        const logRes = await fetch(`http://localhost:3000/api/edit/logs`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ billId: currentEditingId })
+        });
+
+        if (!logRes.ok) {
+            const errData = await logRes.json();
+            alert(`Failed to log old bill: ${errData.message}`);
+            return;
+        }
+
         const res = await fetch(`http://localhost:3000/api/bills/edit/${currentEditingId}`, {
             method: 'PUT',
             headers: {
