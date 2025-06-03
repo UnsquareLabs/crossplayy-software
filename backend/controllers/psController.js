@@ -140,10 +140,38 @@ const extendPSBooking = async (req, res) => {
         res.status(500).json({ message: 'Failed to extend booking' });
     }
 };
+const unbookPS = async (req, res) => {
+    try {
+        const { psId } = req.body;
 
+        if (!psId) {
+            return res.status(400).json({ message: 'psId is required' });
+        }
+
+        const updatedPS = await PS.findOneAndUpdate(
+            { psId },
+            {
+                status: false,
+                bookingTime: null,
+                duration: 0,
+            },
+            { new: true }
+        );
+
+        if (!updatedPS) {
+            return res.status(404).json({ message: `PS with ID ${psId} not found` });
+        }
+
+        res.status(200).json({ message: 'PS unfrozen successfully', ps: updatedPS });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to unfreeze PS' });
+    }
+};
 module.exports = {
     createPS,
     bookPS,
     getTimeLeft,
-    extendPSBooking
+    extendPSBooking,
+    unbookPS
 };

@@ -440,6 +440,7 @@ async function initializePSCards() {
             </div>
             <div class="ps-time">Checking...</div>
             <div class="extend-buttons"></div>
+            <div class="unfreeze-button"></div>
         `;
 
         psGrid.appendChild(psCard);
@@ -448,13 +449,38 @@ async function initializePSCards() {
     updatePSTimes();
     setInterval(updatePSTimes, 60000);
 }
+async function unfreezePS(formattedPsId) {
+    const psId = formattedPsId.toString().startsWith('ps') ? formattedPsId : `PS${formattedPsId}`;
+    try {
+        const res = await fetch('http://localhost:3000/api/ps/unfreeze', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ psId })
+        });
 
+        const data = await res.json();
+        if (res.ok) {
+            alert(`✓ PS ${psId} unfrozen successfully.`);
+            // Optionally re-render the PC cards
+            updatePSTimes();
+            console.log(formattedPsId);
+        } else {
+            alert(`Failed to unfreeze PS: ${data.message}`);
+        }
+    } catch (err) {
+        console.error('Error unfreezing PS:', err);
+        alert('An unexpected error occurred.');
+    }
+}
 async function updatePSTimes() {
     for (const ps of psData) {
         const card = document.getElementById(`ps-card-${ps.id}`);
         const statusDiv = card.querySelector('.ps-status');
         const timeDiv = card.querySelector('.ps-time');
         const extendDiv = card.querySelector('.extend-buttons');
+        const unfreeze = card.querySelector('.unfreeze-button');
 
         const { status, timeRemaining } = await fetchPSStatus(ps.id);
 
@@ -471,8 +497,12 @@ async function updatePSTimes() {
                 <button class="extend-btn" onclick="confirmExtend(${ps.id}, 15); event.stopPropagation();">+15m</button>
                 <button class="extend-btn" onclick="confirmExtend(${ps.id}, 30); event.stopPropagation();">+30m</button>
             `;
+            unfreeze.innerHTML = `
+                <button class="unfreeze-btn" onclick="event.stopPropagation(); unfreezePS('${ps.id}')">Unfreeze</button>
+            `
         } else {
             extendDiv.innerHTML = '';
+            unfreeze.innerHTML = '';
         }
     }
 
