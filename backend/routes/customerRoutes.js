@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const customerController = require('../controllers/customerController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-router.post('/createOrAdd', customerController.createCustomerOrAdd);
-router.post('/onlyCreate', customerController.onlyCreateCustomer);
-router.get('/all', customerController.getAllCustomers);
-router.put('/edit/:id', customerController.updateCustomer);
-router.delete('/delete/:id', customerController.deleteCustomer);
-router.get('/wallet/:contactNo', customerController.getCustomerWalletByPhone);
+router.post('/createOrAdd', authMiddleware, customerController.createCustomerOrAdd);
+router.post('/onlyCreate', authMiddleware, customerController.onlyCreateCustomer);
+router.get('/all', authMiddleware, customerController.getAllCustomers);
+router.put('/edit/:id', authMiddleware, customerController.updateCustomer);
+router.delete('/delete/:id', authMiddleware, customerController.deleteCustomer);
+router.get('/wallet/:contactNo', authMiddleware, customerController.getCustomerWalletByPhone);
 
 module.exports = router;

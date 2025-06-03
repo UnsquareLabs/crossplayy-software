@@ -1,4 +1,10 @@
+const token = localStorage.getItem('token');
 
+if (!token) {
+    alert('Unauthorized access. Please log in first.');
+    window.location.href = 'login.html'; // Redirect to login page
+  
+}
 // Global variables
 let customersData = [];
 let currentEditingId = null;
@@ -159,7 +165,13 @@ function renderCustomers(customers) {
 // Fetch and render customers
 async function fetchAndRenderCustomers() {
     try {
-        const res = await fetch('http://localhost:3000/api/customer/all');
+        const res = await fetch('http://localhost:3000/api/customer/all', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         if (!res.ok) {
             throw new Error('Failed to fetch customers');
         }
@@ -236,6 +248,10 @@ async function deleteCustomer(customerId) {
         try {
             const res = await fetch(`http://localhost:3000/api/customer/delete/${customerId}`, {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
 
             if (!res.ok) {
@@ -277,6 +293,7 @@ document.getElementById('customerForm').addEventListener('submit', async functio
             res = await fetch(`http://localhost:3000/api/customer/edit/${currentEditingId}`, {
                 method: 'PUT',
                 headers: {
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(customerData)
@@ -285,6 +302,7 @@ document.getElementById('customerForm').addEventListener('submit', async functio
             res = await fetch('http://localhost:3000/api/customer/onlyCreate', {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(customerData)

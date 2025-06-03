@@ -1,3 +1,9 @@
+const token = localStorage.getItem('token');
+
+if (!token) {
+    alert('Unauthorized access. Please log in first.');
+    window.location.href = 'login.html'; // Redirect to login page
+}
 // PS Data
 const psData = [
     { id: 1, status: 'available' }, { id: 2, status: 'available' }, { id: 3, status: 'available' }, { id: 4, status: 'available' }, { id: 5, status: 'available' },
@@ -66,7 +72,13 @@ function playSound(frequency, duration) {
 // Snacks Workflow Functions
 async function startSnacksWorkflow() {
     try {
-        const response = await fetch('http://localhost:3000/api/bills/all');
+        const response = await fetch('http://localhost:3000/api/bills/all', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         const bills = await response.json();
 
         const unpaidBills = bills.filter(bill => !bill.status && bill.type == 'ps');
@@ -172,7 +184,13 @@ function closeSnacksPanel() {
 
 async function loadSnacksData() {
     try {
-        const response = await fetch('http://localhost:3000/api/snacks/all');
+        const response = await fetch('http://localhost:3000/api/snacks/all', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch snacks');
         }
@@ -188,45 +206,75 @@ async function loadSnacksData() {
     }
 }
 
-function renderSnacksGrid(filteredSnacks = null) {
+async function fetchSnackImage(snackId, token) {
+    try {
+        const res = await fetch(`/api/snacks/image/${snackId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!res.ok) throw new Error('Image fetch failed');
+        const blob = await res.blob();
+        return URL.createObjectURL(blob);
+    } catch (err) {
+        console.error('Failed to fetch image for snack:', snackId, err);
+        return ''; // fallback: empty src or placeholder image url
+    }
+}
+
+async function renderSnacksGrid(filteredSnacks = null) {
     const snacksGrid = document.getElementById('snacksGrid');
     const snacksToRender = filteredSnacks || snacksData;
+    const token = localStorage.getItem('token');  // get your JWT token
 
     if (snacksToRender.length === 0) {
         snacksGrid.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 20px;">No snacks found</div>';
         return;
     }
 
+    // First render the markup with placeholder src for images
     snacksGrid.innerHTML = snacksToRender.map(snack => {
         const cartItem = snacksCart.find(item => item.id === snack._id);
         const quantityInCart = cartItem ? cartItem.quantity : 0;
         const isOutOfStock = snack.quantity <= 0;
 
         return `
-            <div class="snack-item" data-category="${snack.category}">
-                <div class="snack-header">
-                <img src="/api/snacks/image/${snack._id}" alt="${snack.name}" class="snack-img-preview" />
-                    <div class="snack-info">
-                        <h4>${snack.name}</h4>
-                        <div class="snack-price">₹${snack.price}</div>
-                    </div>
-                    <div class="snack-stock ${isOutOfStock ? 'out-of-stock' : ''}">
-                        ${isOutOfStock ? 'Out of Stock' : `${snack.quantity} left`}
-                    </div>
-                </div>
-                <div class="snack-controls">
-                    <div class="quantity-controls">
-                        <button class="qty-btn" onclick="updateSnackQuantity('${snack._id}', -1)" 
-                                ${quantityInCart <= 0 ? 'disabled' : ''}>-</button>
-                        <div class="quantity-display">${quantityInCart}</div>
-                        <button class="qty-btn" onclick="updateSnackQuantity('${snack._id}', 1)" 
-                                ${isOutOfStock || quantityInCart >= snack.quantity ? 'disabled' : ''}>+</button>
-                    </div>
-                </div>
-            </div>
-        `;
+      <div class="snack-item" data-category="${snack.category}" id="snack-${snack._id}">
+        <div class="snack-header">
+          <img src="" alt="${snack.name}" class="snack-img-preview" id="snack-img-${snack._id}" />
+          <div class="snack-info">
+            <h4>${snack.name}</h4>
+            <div class="snack-price">₹${snack.price}</div>
+          </div>
+          <div class="snack-stock ${isOutOfStock ? 'out-of-stock' : ''}">
+            ${isOutOfStock ? 'Out of Stock' : `${snack.quantity} left`}
+          </div>
+        </div>
+        <div class="snack-controls">
+          <div class="quantity-controls">
+            <button class="qty-btn" onclick="updateSnackQuantity('${snack._id}', -1)" 
+              ${quantityInCart <= 0 ? 'disabled' : ''}>-</button>
+            <div class="quantity-display">${quantityInCart}</div>
+            <button class="qty-btn" onclick="updateSnackQuantity('${snack._id}', 1)" 
+              ${isOutOfStock || quantityInCart >= snack.quantity ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
+      </div>
+    `;
     }).join('');
+
+    // Then fetch each snack image with auth and update src dynamically
+    for (const snack of snacksToRender) {
+        const imgSrc = await fetchSnackImage(snack._id, token);
+        if (imgSrc) {
+            const imgElement = document.getElementById(`snack-img-${snack._id}`);
+            if (imgElement) {
+                imgElement.src = imgSrc;
+            }
+        }
+    }
 }
+
 
 function updateSnackQuantity(snackId, change) {
     const snack = snacksData.find(s => s._id === snackId);
@@ -307,6 +355,7 @@ async function addCartToBill() {
         const response = await fetch(`http://localhost:3000/api/bills/${currentBillId}/add-snacks`, {
             method: 'PUT',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ snacks: snacksCart })
@@ -321,6 +370,7 @@ async function addCartToBill() {
             await fetch(`http://localhost:3000/api/snacks/${cartItem.id}/update-quantity`, {
                 method: 'PUT',
                 headers: {
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ quantityUsed: cartItem.quantity })
@@ -376,7 +426,13 @@ function setupCategoryFilter() {
 // PS Management Functions
 async function fetchPSStatus(psId) {
     try {
-        const res = await fetch(`http://localhost:3000/api/ps/timeleft/PS${psId}`);
+        const res = await fetch(`http://localhost:3000/api/ps/timeleft/PS${psId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         const data = await res.json();
 
         let minutes = data.timeLeft;
@@ -396,7 +452,13 @@ async function fetchPSStatus(psId) {
         }
 
         if (status === 'available') {
-            const billsRes = await fetch('http://localhost:3000/api/bills/all');
+            const billsRes = await fetch('http://localhost:3000/api/bills/all', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
             const bills = await billsRes.json();
 
             for (const bill of bills) {
@@ -455,6 +517,7 @@ async function unfreezePS(formattedPsId) {
         const res = await fetch('http://localhost:3000/api/ps/unfreeze', {
             method: 'PUT',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ psId })
@@ -656,6 +719,7 @@ async function bookSelectedPSs() {
         const response = await fetch('http://localhost:3000/api/ps/book', {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ bookings })
@@ -677,7 +741,7 @@ async function bookSelectedPSs() {
 
         const billResponse = await fetch('http://localhost:3000/api/bills/create', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(billPayload)
         });
 
@@ -711,6 +775,7 @@ async function extendTime(psId, minutes) {
         const billResponse = await fetch('http://localhost:3000/api/bills/extend-bill', {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ psId: `PS${psId}`, extendTime: minutes, type: 'ps' })
@@ -727,6 +792,7 @@ async function extendTime(psId, minutes) {
         const bookingResponse = await fetch('http://localhost:3000/api/ps/extend-booking', {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ psId: `PS${psId}`, extendDuration: minutes })
@@ -753,7 +819,13 @@ async function updateUnpaidBills() {
     unpaidBillsContainer.innerHTML = '<div style="text-align: center; opacity: 0.6;">Loading bills...</div>';
 
     try {
-        const res = await fetch('http://localhost:3000/api/bills/all');
+        const res = await fetch('http://localhost:3000/api/bills/all', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         const bills = await res.json();
 
         unpaidBillsContainer.innerHTML = '';
@@ -816,7 +888,13 @@ async function updateUnpaidBills() {
 
 async function showPaymentModal(billId) {
     try {
-        const res = await fetch(`http://localhost:3000/api/bills/${billId}`);
+        const res = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         if (!res.ok) {
             throw new Error('Failed to fetch bill details');
         }
@@ -858,7 +936,13 @@ async function showPaymentModal(billId) {
         }
         const contactNo = bill.contactNo;
 
-        fetch(`/api/customer/wallet/${contactNo}`)
+        fetch(`/api/customer/wallet/${contactNo}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.walletCredit !== undefined) {
@@ -953,6 +1037,7 @@ async function confirmPayment() {
         const response = await fetch(`http://localhost:3000/api/bills/${billId}/pay`, {
             method: 'PUT',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ cash, upi, discount, wallet })
@@ -964,7 +1049,13 @@ async function confirmPayment() {
             return;
         }
 
-        const billRes = await fetch(`http://localhost:3000/api/bills/${billId}`);
+        const billRes = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         const bill = await billRes.json();
 
         if (!billRes.ok) {
@@ -980,6 +1071,7 @@ async function confirmPayment() {
         const customerRes = await fetch('http://localhost:3000/api/customer/createOrAdd', {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(customerPayload)

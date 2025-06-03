@@ -1,3 +1,10 @@
+const token = localStorage.getItem('token');
+
+if (!token) {
+    alert('Unauthorized access. Please log in first.');
+    window.location.href = 'login.html'; // Redirect to login page
+ 
+}
 // Sample data - replace with actual API calls
 let billsData = [];
 
@@ -180,7 +187,14 @@ function renderBills(bills) {
 async function editBill(billId) {
     try {
         console.log("Editing bill ID:", billId);
-        const res = await fetch(`http://localhost:3000/api/bills/${billId}`);
+        const res = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+
+        });
         if (!res.ok) {
             throw new Error('Failed to fetch bill');
         }
@@ -294,7 +308,13 @@ function renderPsUnitsFields(psUnits) {
 // Fetch and render paid bills
 async function fetchAndRenderPaidBills() {
     try {
-        const res = await fetch('http://localhost:3000/api/bills/all');
+        const res = await fetch('http://localhost:3000/api/bills/all', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         const allBills = await res.json();
 
         // Update local billsData with fetched data
@@ -339,6 +359,10 @@ async function deleteBill(billId) {
         try {
             const res = await fetch(`http://localhost:3000/api/bills/delete/${billId}`, {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
 
             if (!res.ok) {
@@ -410,6 +434,7 @@ async function submitBillEdit() {
         const res = await fetch(`http://localhost:3000/api/bills/edit/${currentEditingId}`, {
             method: 'PUT',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(updatedBill)

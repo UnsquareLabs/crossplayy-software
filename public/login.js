@@ -1,4 +1,4 @@
-const backendURL = 'http://localhost:3000';
+// const backendURL = 'http://localhost:3000';
 // Particle System
 function createParticles() {
   const particlesContainer = document.getElementById('particles');
@@ -58,7 +58,7 @@ document.getElementById('loginForm').addEventListener('submit', async function (
 
   try {
     // Call backend login API
-    const res = await fetch(`${backendURL}/api/auth/login`, {
+    const res = await fetch(`http://localhost:3000/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -87,7 +87,7 @@ document.getElementById('loginForm').addEventListener('submit', async function (
       setTimeout(() => {
         // alert('Login successful! Redirecting to game lobby...');
         window.location.href = 'pc.html'; // actual redirect
-      }, 1000);
+      }, 3000);
     }, 1500);
 
   } catch (err) {

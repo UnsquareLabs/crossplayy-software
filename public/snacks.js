@@ -1,3 +1,9 @@
+const token = localStorage.getItem('token');
+
+if (!token) {
+    alert('Unauthorized access. Please log in first.');
+    window.location.href = 'login.html'; // Redirect to login page
+}
 // Global variables
 let snacksData = []
 let currentEditingId = null
@@ -128,8 +134,9 @@ function getStockStatusText(quantity) {
 }
 
 // Render snacks grid
-function renderSnacks(snacks) {
-    const grid = document.getElementById("snacksGrid")
+async function renderSnacks(snacks) {
+    const grid = document.getElementById("snacksGrid");
+    const token = localStorage.getItem("token");
 
     if (snacks.length === 0) {
         grid.innerHTML = `
@@ -138,18 +145,20 @@ function renderSnacks(snacks) {
                     No snacks found. Add your first snack!
                 </p>
             </div>
-        `
-        return
+        `;
+        return;
     }
 
+    // 1. Render the cards with placeholder image
     grid.innerHTML = snacks
         .map((snack) => {
-            const stockStatus = getStockStatus(snack.quantity)
-            const stockText = getStockStatusText(snack.quantity)
+            const stockStatus = getStockStatus(snack.quantity);
+            const stockText = getStockStatusText(snack.quantity);
             return `
         <div class="snack-card stock-${stockStatus}" data-id="${snack._id}">
             <div class="stock-indicator ${stockStatus}">${stockText}</div>
-            <img src="/api/snacks/image/${snack._id}?v=${new Date(snack.updatedAt).getTime()}" alt="${snack.name}" class="snack-image" onerror="this.src='/placeholder.svg?height=180&width=250'">
+            <img id="snack-img-${snack._id}" src="/placeholder.svg?height=180&width=250" 
+                 alt="${snack.name}" class="snack-image" />
             <div class="snack-details">
                 <h3 class="snack-name">${snack.name}</h3>
                 <div class="snack-price">${formatCurrency(snack.price)}</div>
@@ -164,15 +173,41 @@ function renderSnacks(snacks) {
                 </div>
             </div>
         </div>
-      `
+      `;
         })
-        .join("")
+        .join("");
+
+    // 2. Replace placeholder image with fetched image using JWT
+    for (const snack of snacks) {
+        try {
+            const res = await fetch(`/api/snacks/image/${snack._id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            if (!res.ok) throw new Error("Image fetch failed");
+
+            const blob = await res.blob();
+            const imageUrl = URL.createObjectURL(blob);
+            const imgElement = document.getElementById(`snack-img-${snack._id}`);
+            if (imgElement) imgElement.src = imageUrl;
+        } catch (error) {
+            console.error(`Error loading image for snack ${snack._id}:`, error);
+            // fallback image already set in placeholder
+        }
+    }
 }
+
 
 // Fetch and render snacks
 async function fetchAndRenderSnacks() {
     try {
-        const res = await fetch("http://localhost:3000/api/snacks/all")
+        const res = await fetch("http://localhost:3000/api/snacks/all", {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
         if (!res.ok) {
             throw new Error("Failed to fetch snacks")
         }
@@ -247,6 +282,9 @@ async function deleteSnack(snackId) {
         try {
             const res = await fetch(`http://localhost:3000/api/snacks/delete/${snackId}`, {
                 method: "DELETE",
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             })
 
             if (!res.ok) {
@@ -291,6 +329,7 @@ async function updateSnackQuantity(snackId, increase) {
         const res = await fetch(`http://localhost:3000/api/snacks/editQuant/${snackId}`, {
             method: "PUT",
             headers: {
+                'Authorization': `Bearer ${token}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({ increase }),
@@ -397,12 +436,18 @@ document.getElementById("snackForm").addEventListener("submit", async (e) => {
         if (isEditMode && currentEditingId) {
             res = await fetch(`http://localhost:3000/api/snacks/edit/${currentEditingId}`, {
                 method: "PUT",
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
                 body: formData
             })
             message = "✓ Snack updated successfully!";
         } else {
             res = await fetch("http://localhost:3000/api/snacks/create", {
                 method: "POST",
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
                 body: formData
             })
             message = "✓ Snack added successfully!";

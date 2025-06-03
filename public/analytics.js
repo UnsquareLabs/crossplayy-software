@@ -1,3 +1,9 @@
+const token = localStorage.getItem('token');
+
+if (!token) {
+    alert('Unauthorized access. Please log in first.');
+    window.location.href = 'login.html'; // Redirect to login page
+}
 // Sample data - replace with actual API calls
 let chartInstance = null;
 
@@ -345,6 +351,7 @@ async function generateAnalytics() {
         const response = await fetch('http://localhost:3000/api/analytics/earnings', {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestData)
