@@ -257,14 +257,14 @@ const markBillAsPaid = async (req, res) => {
         const foundCustomer = await Customer.findOne({ contactNo: bill.contactNo });
         
 
-        if (wallet >= totalDue) {
+        if (wallet >= effectivePaid) {
 
             // Zero out other payment methods
             cash = 0;
             upi = 0;
 
             if (foundCustomer) {
-                foundCustomer.walletCredit -= totalDue;
+                foundCustomer.walletCredit -= effectivePaid;
                 await foundCustomer.save();
             }
 
@@ -273,8 +273,8 @@ const markBillAsPaid = async (req, res) => {
             bill.cash = 0;
             bill.upi = 0;
             bill.discount = discount;
-            bill.wallet = totalDue;
-            bill.paidAmt = totalDue;
+            bill.wallet = effectivePaid;
+            bill.paidAmt = effectivePaid;
             bill.remainingAmt = 0;
 
             const updatedBill = await bill.save();
@@ -298,7 +298,7 @@ const markBillAsPaid = async (req, res) => {
             bill.upi = upi;
             bill.discount = discount;
             bill.wallet = wallet;
-            bill.paidAmt = totalDue;
+            bill.paidAmt = effectivePaid;
             bill.remainingAmt = 0;
 
             const updatedBill = await bill.save();

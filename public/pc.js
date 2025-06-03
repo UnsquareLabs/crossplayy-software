@@ -847,6 +847,7 @@ async function showPaymentModal(billId) {
             hour12: false,
             timeZone: 'Asia/Kolkata'
         });
+
         const contactNo = bill.contactNo;
 
         fetch(`/api/customer/wallet/${contactNo}`)
@@ -879,49 +880,62 @@ async function showPaymentModal(billId) {
         let amountBreakdown = '';
         if (bill.remainingAmt > 0) {
             amountBreakdown = `
-        <div><strong>Paid Amount:</strong> ₹${bill.paidAmt?.toFixed(2) || 0}</div>
-        <div><strong>Remaining Amount:</strong> ₹${bill.remainingAmt.toFixed(2)}</div>
-    `;
+                <div><strong>Paid Amount:</strong> ₹${bill.paidAmt?.toFixed(2) || 0}</div>
+                <div><strong>Remaining Amount:</strong> ₹${bill.remainingAmt.toFixed(2)}</div>
+            `;
         }
 
         const paymentSummary = document.getElementById('paymentSummary');
+        const originalAmount = bill.amount.toFixed(2);
+
         paymentSummary.innerHTML = `
-    <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
-    <div><strong>Customer Name:</strong> ${bill.userName}</div>
-    <div><strong>Contact No:</strong> ${bill.contactNo}</div>
-    <div><strong>PC Used:</strong></div>
-    <div style="margin-left: 15px;">${pcUsageList}</div>
-    ${snacksSection}
-    ${amountBreakdown}
-   <div id="walletSection" style="margin: 15px 0;">
-    <label>
-        <input type="checkbox" id="useWalletCheckbox" />
-        <strong>Use Wallet Credit</strong>
-    </label>
-    <div id="walletCreditDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
-</div>
+            <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
+            <div><strong>Customer Name:</strong> ${bill.userName}</div>
+            <div><strong>Contact No:</strong> ${bill.contactNo}</div>
+            <div><strong>PC Used:</strong></div>
+            <div style="margin-left: 15px;">${pcUsageList}</div>
+            ${snacksSection}
+            ${amountBreakdown}
 
-    <div style="margin-top: 15px;">
-        <label><strong>Discount (₹):</strong></label><br/>
-        <input type="number" id="discountInput" min="0" value="0" style="padding: 5px; width: 100%; margin-bottom: 15px;" />
-    </div>
+            <div id="walletSection" style="margin: 15px 0;">
+                <label>
+                    <input type="checkbox" id="useWalletCheckbox" />
+                    <strong>Use Wallet Credit</strong>
+                </label>
+                <div id="walletCreditDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
+            </div>
 
-    <div style="display: flex; gap: 10px;">
-        <div style="flex: 1;">
-            <label><strong>Cash Payment (₹):</strong></label><br/>
-            <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%;" />
-        </div>
-        <div style="flex: 1;">
-            <label><strong>UPI Payment (₹):</strong></label><br/>
-            <input type="number" id="upiInput" min="0" required style="padding: 5px; width: 100%;" />
-        </div>
-    </div> 
-    <div class="payment-total" style="margin-top: 10px;">
-        <strong>Total Amount:</strong> ₹${bill.amount.toFixed(2)}
-    </div>
-`;
+            <div style="margin-top: 15px;">
+                <label><strong>Discount (₹):</strong></label><br/>
+                <input type="number" id="discountInput" min="0" value="0" style="padding: 5px; width: 100%; margin-bottom: 15px;" />
+            </div>
 
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label><strong>Cash Payment (₹):</strong></label><br/>
+                    <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%;" />
+                </div>
+                <div style="flex: 1;">
+                    <label><strong>UPI Payment (₹):</strong></label><br/>
+                    <input type="number" id="upiInput" min="0" required style="padding: 5px; width: 100%;" />
+                </div>
+            </div> 
+            <div class="payment-total" style="margin-top: 10px;">
+                <strong>Total Amount:</strong> ₹<span id="finalAmount">${originalAmount}</span>
+            </div>
+        `;
 
+        // Add event listener for dynamic discount effect
+        const discountInput = document.getElementById('discountInput');
+        const finalAmountDisplay = document.getElementById('finalAmount');
+
+        discountInput.addEventListener('input', () => {
+            let discount = parseFloat(discountInput.value) || 0;
+            discount = Math.max(0, Math.min(discount, bill.amount)); // Clamp discount between 0 and amount
+
+            const finalAmount = (bill.amount - discount).toFixed(2);
+            finalAmountDisplay.textContent = finalAmount;
+        });
 
         const paymentModal = document.getElementById('paymentModal');
         paymentModal.classList.add('show');
@@ -932,6 +946,7 @@ async function showPaymentModal(billId) {
         alert('Unable to load bill details. Please try again.');
     }
 }
+
 
 function closePaymentModal() {
     document.getElementById('paymentModal').classList.remove('show');

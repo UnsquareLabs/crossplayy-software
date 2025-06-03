@@ -905,6 +905,17 @@ async function showPaymentModal(billId) {
 
         `;
 
+        const discountInput = document.getElementById('discountInput');
+        const totalAmountDiv = paymentSummary.querySelector('.payment-total');
+        let originalAmount = bill.amount;
+
+        discountInput.addEventListener('input', () => {
+            const discount = parseFloat(discountInput.value) || 0;
+            const finalAmount = Math.max(0, originalAmount - discount);
+            totalAmountDiv.innerHTML = `<strong>Total Amount:</strong> ₹${finalAmount.toFixed(2)}`;
+        });
+
+
         const paymentModal = document.getElementById('paymentModal');
         paymentModal.classList.add('show');
         paymentModal.dataset.billId = bill._id;
