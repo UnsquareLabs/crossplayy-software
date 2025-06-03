@@ -159,13 +159,13 @@ function renderBills(bills) {
         }
 </td>
             <td>${formatDate(bill.bookingTime)}</td>
-            <td class="payment-mode">
-        <div>Cash: ₹${bill.cash || 0}</div>
-        <div>UPI: ₹${bill.upi || 0}</div>
-        <div>Discount: ₹${bill.discount || 0}</div>
+            <td>
+        Cash: ₹${bill.cash || 0}</td>
+        <td>UPI: ₹${bill.upi || 0}</td>
+        <td>Wallet: ₹${bill.wallet || 0}</td>
+       <td> Discount: ₹${bill.discount || 0}
     </td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
-            <td><span class="status-badge status-paid">Paid</span></td>
             <td>
                 <div class="action-buttons">
                     <button class="action-btn edit-btn" onclick="editBill('${bill._id}')">Edit</button>
