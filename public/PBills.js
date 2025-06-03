@@ -154,7 +154,7 @@ function renderBills(bills) {
             <td>${formatUnits(bill)}</td>
             <td class="snacks-cell">
   ${bill.snacks && bill.snacks.length > 0
-            ? bill.snacks.map(s => `<span>${s.name}(${s.quantity})</span>`).join(' ')
+            ? bill.snacks.map(s => `<span>${s.name}${s.quantity}(${s.price})</span>`).join(' ')
             : '—'
         }
 </td>
@@ -414,6 +414,7 @@ async function submitBillEdit() {
             },
             body: JSON.stringify(updatedBill)
         });
+
         if (!res.ok) {
             // Try to parse error message from response body
             let errorMessage = 'Failed to update bill';
@@ -423,16 +424,15 @@ async function submitBillEdit() {
                     errorMessage = errorData.message;
                 }
             } catch (e) {
-                // parsing failed, keep default error message
+                // Parsing failed, keep default error message
             }
 
             alert(errorMessage);
-            // throw new Error(errorMessage);
+            return; // stop execution here
         }
 
-        // Only parse JSON if there's content
-        const text = await res.text();
-        const result = text ? JSON.parse(text) : {};
+        // ✅ You forgot to parse the successful JSON response
+        const result = await res.json();
 
         if (!result.bill) {
             throw new Error('No bill data returned from server');
@@ -443,8 +443,9 @@ async function submitBillEdit() {
         alert('✓ Bill updated successfully!');
     } catch (error) {
         console.error('Error updating bill:', error);
-        alert();
+        alert('Something went wrong while updating the bill.');
     }
+
 }
 
 // Close modal

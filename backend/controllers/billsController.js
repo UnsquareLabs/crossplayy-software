@@ -85,7 +85,7 @@ const createBill = async (req, res) => {
             userName,
             contactNo,
             amount: totalAmount,
-            remainingAmt:totalAmount,
+            remainingAmt: totalAmount,
             gamingTotal: totalAmount,
             snacksTotal: 0,
             bookingTime: new Date()
@@ -239,8 +239,8 @@ const markBillAsPaid = async (req, res) => {
             return res.status(200).json({ message: 'Bill not found' });
         }
 
-        if(wallet==-1){
-            wallet=0;
+        if (wallet == -1) {
+            wallet = 0;
         }
         const totalDue = bill.amount;
         const totalPaid = cash + upi + wallet;
@@ -353,6 +353,21 @@ const editBill = async (req, res) => {
             return res.status(400).json({ message: 'Invalid bill type.' });
         }
 
+
+        // Add snacks total from bill.snacks
+        let snackTotal = 0;
+        if (Array.isArray(bill.snacks)) {
+            for (const snack of bill.snacks) {
+                const price = Number(snack.price) || 0;
+                const quantity = Number(snack.quantity) || 0;
+                snackTotal += price * quantity;
+            }
+        }
+
+
+        totalAmount += snackTotal;
+
+        // console.log(totalAmount);
         // Validate cash + upi - discount = totalAmount
         const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(discount);
         totalAmount = Math.round(totalAmount);
@@ -404,7 +419,7 @@ const addSnacksToBill = async (req, res) => {
 
         // Recalculate snacksTotal
         const updatedSnacksTotal = bill.snacks.reduce((sum, snack) => {
-            return  (snack.quantity * snack.price);
+            return sum + (snack.quantity * snack.price);
         }, 0);
         bill.snacksTotal = updatedSnacksTotal;
 
