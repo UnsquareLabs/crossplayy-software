@@ -160,10 +160,10 @@ function renderBills(bills) {
 </td>
             <td>${formatDate(bill.bookingTime)}</td>
             <td>
-        Cash: ₹${bill.cash || 0}</td>
-        <td>UPI: ₹${bill.upi || 0}</td>
-        <td>Wallet: ₹${bill.wallet || 0}</td>
-       <td> Discount: ₹${bill.discount || 0}
+        ₹${bill.cash || 0}</td>
+        <td>₹${bill.upi || 0}</td>
+        <td> ₹${bill.wallet || 0}</td>
+       <td>  ₹${bill.discount || 0}
     </td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
             <td>
