@@ -1,4 +1,5 @@
 const Bill = require('../models/bills.models');
+const Customer = require('../models/customer.models');
 
 // Create new bill
 const createBill = async (req, res) => {
@@ -233,41 +234,83 @@ const markBillAsPaid = async (req, res) => {
         const { id } = req.params;
         let { cash = 0, upi = 0, discount = 0, wallet = 0 } = req.body;
 
-        // First, retrieve the bill to get its total amount
+        console.log(`🧾 Marking bill as paid: ID=${id}, Cash=${cash}, UPI=${upi}, Discount=${discount}, Wallet=${wallet}`);
+
+        // Retrieve the bill
         const bill = await Bill.findById(id);
         if (!bill) {
+            console.log('❌ Bill not found');
             return res.status(200).json({ message: 'Bill not found' });
         }
 
         if (wallet == -1) {
+            console.log('⚠️ Wallet value is -1, resetting to 0');
             wallet = 0;
         }
+
         const totalDue = bill.amount;
-        const totalPaid = cash + upi + wallet;
         const effectivePaid = totalDue - discount;
 
-        if (effectivePaid !== totalPaid) {
-            return res.status(400).json({ message: `Total payment (cash + upi = ₹${totalPaid}) must equal total due (₹${effectivePaid}).` });
+        console.log(`💰 Total due: ₹${totalDue}, Effective to be paid after discount: ₹${effectivePaid}`);
+
+        // Try to fetch customer
+        const foundCustomer = await Customer.findOne({ contactNo: bill.contactNo });
+        
+
+        if (wallet >= totalDue) {
+
+            // Zero out other payment methods
+            cash = 0;
+            upi = 0;
+
+            if (foundCustomer) {
+                foundCustomer.walletCredit -= totalDue;
+                await foundCustomer.save();
+            }
+
+            // Mark bill as paid
+            bill.status = true;
+            bill.cash = 0;
+            bill.upi = 0;
+            bill.discount = discount;
+            bill.wallet = totalDue;
+            bill.paidAmt = totalDue;
+            bill.remainingAmt = 0;
+
+            const updatedBill = await bill.save();
+            return res.status(200).json({ message: 'Bill marked as paid using wallet balance', bill: updatedBill });
+        } else {
+            const totalPaid = cash + upi + wallet;
+
+            if (totalPaid !== effectivePaid) {
+                return res.status(400).json({
+                    message: `Total payment (cash + upi + wallet = ₹${totalPaid}) must equal total due minus discount (₹${effectivePaid}).`
+                });
+            }
+
+            if (foundCustomer) {
+                foundCustomer.walletCredit -= wallet;
+                await foundCustomer.save();
+            }
+
+            bill.status = true;
+            bill.cash = cash;
+            bill.upi = upi;
+            bill.discount = discount;
+            bill.wallet = wallet;
+            bill.paidAmt = totalDue;
+            bill.remainingAmt = 0;
+
+            const updatedBill = await bill.save();
+            return res.status(200).json({ message: 'Bill marked as paid', bill: updatedBill });
         }
-
-        // Update the bill with status = true, paidAmt = amount, remainingAmt = 0
-        bill.status = true;
-        bill.cash = cash;
-        bill.upi = upi;
-        bill.discount = discount;
-        bill.wallet = wallet;
-        bill.amount = bill.amount + bill.paidAmt;
-        bill.paidAmt = 0;
-        bill.remainingAmt = 0;
-
-        const updatedBill = await bill.save();
-
-        res.status(200).json({ message: 'Bill marked as paid', bill: updatedBill });
     } catch (err) {
-        console.error(err);
+        console.error('❗ Error in markBillAsPaid:', err);
         res.status(500).json({ message: 'Failed to update bill status' });
     }
 };
+
+
 
 const deleteBill = async (req, res) => {
     try {
