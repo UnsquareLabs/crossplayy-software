@@ -88,7 +88,11 @@ const billSchema = new mongoose.Schema({
       quantity: { type: Number, required: true },
       price: { type: Number, required: true } // unit price
     }
-  ]
+  ],
+  billedBy: {
+    type: String,
+    required: true
+  }
 });
 
 module.exports = mongoose.model('Bill', billSchema);

@@ -14,6 +14,11 @@ const createBill = async (req, res) => {
             return res.status(400).json({ message: 'userName and contactNo are required' });
         }
 
+        if (!req.user || !req.user.email) {
+            return res.status(401).json({ message: 'Unauthorized: No user info found in token' });
+        }
+
+        const billedBy = req.user.email;
         // Validate units according to type
         if (type === 'pc') {
             if (!pcUnits || !Array.isArray(pcUnits) || pcUnits.length === 0) {
@@ -85,6 +90,7 @@ const createBill = async (req, res) => {
             type,
             userName,
             contactNo,
+            billedBy,
             amount: totalAmount,
             remainingAmt: totalAmount,
             gamingTotal: totalAmount,
@@ -255,7 +261,7 @@ const markBillAsPaid = async (req, res) => {
 
         // Try to fetch customer
         const foundCustomer = await Customer.findOne({ contactNo: bill.contactNo });
-        
+
 
         if (wallet >= effectivePaid) {
 

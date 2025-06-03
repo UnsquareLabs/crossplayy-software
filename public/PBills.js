@@ -3,7 +3,7 @@ const token = localStorage.getItem('token');
 if (!token) {
     alert('Unauthorized access. Please log in first.');
     window.location.href = 'login.html'; // Redirect to login page
- 
+
 }
 // Sample data - replace with actual API calls
 let billsData = [];
@@ -166,13 +166,12 @@ function renderBills(bills) {
         }
 </td>
             <td>${formatDate(bill.bookingTime)}</td>
-            <td>
-        ₹${bill.cash || 0}</td>
-        <td>₹${bill.upi || 0}</td>
-        <td> ₹${bill.wallet || 0}</td>
-       <td>  ₹${bill.discount || 0}
-    </td>
+            <td>₹${bill.cash || 0}</td>
+            <td>₹${bill.upi || 0}</td>
+            <td> ₹${bill.wallet || 0}</td>
+            <td>₹${bill.discount || 0}</td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
+            <td>${bill.billedBy}</td>
             <td>
                 <div class="action-buttons">
                     <button class="action-btn edit-btn" onclick="editBill('${bill._id}')">Edit</button>
