@@ -157,7 +157,7 @@ function renderVersionsTable(versions, bill) {
                         <td>${bill?.contactNo || '<span class="empty-cell">—</span>'}</td>
                         <td class="units-cell ${!isFirstVersion && changes.units ? 'changed-cell' : ''}">${formatUnits(version, bill)}</td>
                         <td class="snacks-cell">${formatSnacks(bill)}</td>
-                        <td>${bill?.bookingTime ? formatDate(bill.bookingTime) : '<span class="empty-cell">—</span>'}</td>
+                        <td>${bill?.bookingTime ? formatDate(version.editedAt) : '<span class="empty-cell">—</span>'}</td>
                         <td class="${!isFirstVersion && changes.cash ? 'changed-cell' : ''}">₹${version.cash || 0}</td>
                         <td class="${!isFirstVersion && changes.upi ? 'changed-cell' : ''}">₹${version.UPI || 0}</td>
                         <td class="${!isFirstVersion && changes.wallet ? 'changed-cell' : ''}">₹${version.wallet || 0}</td>
@@ -192,7 +192,7 @@ function renderVersionsTable(versions, bill) {
                     <td>${bill.contactNo}</td>
                     <td class="units-cell ${currentChanges.units ? 'changed-cell' : ''}">${formatUnits(null, bill)}</td>
                     <td class="snacks-cell">${formatSnacks(bill)}</td>
-                    <td>${formatDate(bill.bookingTime)}</td>
+                    <td>-</td>
                     <td class="${currentChanges.cash ? 'changed-cell' : ''}">₹${bill.cash || 0}</td>
                     <td class="${currentChanges.upi ? 'changed-cell' : ''}">₹${bill.upi || 0}</td>
                     <td class="${currentChanges.wallet ? 'changed-cell' : ''}">₹${bill.wallet || 0}</td>
@@ -213,7 +213,7 @@ function renderVersionsTable(versions, bill) {
                                 <th>Contact</th>
                                 <th>Units</th>
                                 <th>Snacks</th>
-                                <th>Booking Time</th>
+                                <th>Edited At</th>
                                 <th>Cash</th>
                                 <th>UPI</th>
                                 <th>Wallet</th>
@@ -253,11 +253,15 @@ function renderEditLogs(logs, bills) {
 
     logsContainer.innerHTML = logs.map(log => {
         const bill = billsMap[log.billId];
+        if (!bill) {
+            // console.warn(`No bill found for log.billId: ${log.billId}`);
+            return ''; // Skip this log
+        }
         return `
                     <div class="bill-section">
                         <div class="bill-header">
                             <h2>Bill ID: ${log.billId}</h2>
-                            <div class="created-at">Created: ${formatDate(log.createdAt)}</div>
+                            <div class="created-at">Created: ${formatDate(bill.bookingTime)}</div>
                         </div>
                         ${renderVersionsTable(log.versions, bill)}
                     </div>

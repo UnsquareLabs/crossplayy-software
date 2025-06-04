@@ -363,13 +363,13 @@ const editBill = async (req, res) => {
         const normalizedExistingPS = normalizePSUnits(bill.psUnits);
         const normalizedIncomingPS = normalizePSUnits(psUnits);
 
-        console.log('--- Field Comparison ---');
-        console.log(`cash: existing=${bill.cash}, incoming=${cash}`);
-        console.log(`upi: existing=${bill.upi}, incoming=${upi}`);
-        console.log(`wallet: existing=${bill.wallet}, incoming=${wallet}`);
-        console.log(`discount: existing=${bill.discount}, incoming=${discount}`);
-        console.log(`pcUnits: existing=${JSON.stringify(normalizedExistingPC)}, incoming=${JSON.stringify(normalizedIncomingPC)}`);
-        console.log(`psUnits: existing=${JSON.stringify(normalizedExistingPS)}, incoming=${JSON.stringify(normalizedIncomingPS)}`);
+        // console.log('--- Field Comparison ---');
+        // console.log(`cash: existing=${bill.cash}, incoming=${cash}`);
+        // console.log(`upi: existing=${bill.upi}, incoming=${upi}`);
+        // console.log(`wallet: existing=${bill.wallet}, incoming=${wallet}`);
+        // console.log(`discount: existing=${bill.discount}, incoming=${discount}`);
+        // console.log(`pcUnits: existing=${JSON.stringify(normalizedExistingPC)}, incoming=${JSON.stringify(normalizedIncomingPC)}`);
+        // console.log(`psUnits: existing=${JSON.stringify(normalizedExistingPS)}, incoming=${JSON.stringify(normalizedIncomingPS)}`);
 
         const isSame =
             bill.cash === cash &&
