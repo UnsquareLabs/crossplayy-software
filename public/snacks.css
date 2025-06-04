@@ -829,7 +829,11 @@ body {
     color: rgba(15, 14, 14, 0.7);
     font-size: 14px;
 }
-
+.logo-image {
+    height: 85px;
+    width: auto;
+    object-fit: contain;
+}
 .copyright {
     opacity: 0.8;
 }

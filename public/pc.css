@@ -1470,6 +1470,12 @@ body {
     font-weight: bold;
 }
 
+.logo-image {
+    height: 85px;
+    width: auto;
+    object-fit: contain;
+}
+
 @media (max-width: 768px) {
     .footer-content {
         flex-direction: column;

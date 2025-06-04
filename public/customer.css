@@ -680,6 +680,7 @@ body {
         width: 100%;
     }
 }
+
 /* Footer Styles */
 .footer {
     position: relative;
@@ -716,6 +717,12 @@ body {
     -webkit-text-fill-color: transparent;
     background-clip: text;
     font-weight: bold;
+}
+
+.logo-image {
+    height: 85px;
+    width: auto;
+    object-fit: contain;
 }
 
 @media (max-width: 768px) {
