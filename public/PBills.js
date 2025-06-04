@@ -5,6 +5,12 @@ if (!token) {
     window.location.href = 'login.html'; // Redirect to login page
 
 }
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+    }
+}
 // Sample data - replace with actual API calls
 let billsData = [];
 

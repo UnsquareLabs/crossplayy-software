@@ -4,6 +4,12 @@ if (!token) {
     alert('Unauthorized. Please log in first.');
     window.location.href = 'login.html';
 }
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+    }
+}
 
 // PC Data
 const pcData = [

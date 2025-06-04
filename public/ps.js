@@ -5,7 +5,12 @@ if (!token) {
     alert("Unauthorized access. Please log in first.")
     window.location.href = "login.html"
 }
-
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+    }
+}
 // PS Data
 const psData = [
     { id: 1, status: "available" },
