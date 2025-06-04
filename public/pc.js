@@ -2,9 +2,8 @@ const token = localStorage.getItem('token');
 
 if (!token) {
     alert('Unauthorized. Please log in first.');
-    window.location.href = 'login.html'; // Redirect to login if no token
+    window.location.href = 'login.html';
 }
-
 
 // PC Data
 const pcData = [
@@ -19,40 +18,22 @@ let snacksCart = [];
 let currentBillId = null;
 let selectedBillInfo = null;
 
-// Sidebar functionality
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
+// Audio context for sound effects
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioInitialized = false;
 
-    sidebar.classList.toggle('open');
-    mainContent.classList.toggle('shifted');
-}
-
-function setActiveSection(section) {
-    document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
-    event.target.classList.add('active');
-    console.log('Active section:', section);
-}
-
-// Particle System
-function createParticles() {
-    const particlesContainer = document.getElementById('particles');
-    const particleCount = 50;
-
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        particle.style.left = Math.random() * 100 + '%';
-        particle.style.animationDelay = Math.random() * 6 + 's';
-        particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
-        particlesContainer.appendChild(particle);
+// Initialize audio on first user interaction
+function initAudioContext() {
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
     }
+    audioInitialized = true;
 }
 
-// Sound Effects
 function playSound(frequency, duration) {
     try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (!audioInitialized) return;
+
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
 
@@ -69,6 +50,72 @@ function playSound(frequency, duration) {
         oscillator.stop(audioContext.currentTime + duration);
     } catch (e) {
         console.log('Audio not supported');
+    }
+}
+
+// Initialize audio on first click
+window.addEventListener('click', () => {
+    if (!audioInitialized) {
+        initAudioContext();
+    }
+}, { once: true });
+
+// Gaming Stickers
+function createGamingStickers() {
+    const stickersContainer = document.getElementById('gamingStickers');
+    const stickerIcons = ['🎮', '🖥️', '⚡', '🏆', '⭐', '🎯', '💎', '🔥', '🎪', '🎨', '🎭', '🎊', '🎉', '🌟', '💫'];
+    const stickerCount = 25;
+
+    for (let i = 0; i < stickerCount; i++) {
+        const sticker = document.createElement('div');
+        sticker.className = 'sticker';
+        sticker.textContent = stickerIcons[Math.floor(Math.random() * stickerIcons.length)];
+        sticker.style.left = Math.random() * 100 + '%';
+        sticker.style.top = Math.random() * 100 + '%';
+        sticker.style.animationDelay = Math.random() * 15 + 's';
+        sticker.style.fontSize = (Math.random() * 20 + 20) + 'px';
+        stickersContainer.appendChild(sticker);
+    }
+}
+
+// Menu Toggle Functionality
+function setupMenu() {
+    const menuToggle = document.getElementById('menuToggle');
+    const sideMenu = document.getElementById('sideMenu');
+    const menuOverlay = document.getElementById('menuOverlay');
+
+    menuToggle.addEventListener('click', function () {
+        playSound(600, 0.2);
+        this.classList.toggle('active');
+        sideMenu.classList.toggle('open');
+        menuOverlay.classList.toggle('active');
+    });
+
+    menuOverlay.addEventListener('click', function () {
+        menuToggle.classList.remove('active');
+        sideMenu.classList.remove('open');
+        menuOverlay.classList.remove('active');
+        playSound(400, 0.1);
+    });
+
+    // Menu item hover effects
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('mouseenter', () => playSound(300, 0.1));
+    });
+}
+
+// Particle System
+function createParticles() {
+    const particlesContainer = document.getElementById('particles');
+    const particleCount = 50;
+
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 6 + 's';
+        particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+        particlesContainer.appendChild(particle);
     }
 }
 
@@ -89,7 +136,6 @@ async function startSnacksWorkflow() {
         }
 
         const bills = await response.json();
-
         const unpaidBills = bills.filter(bill => !bill.status && bill.type == 'pc');
 
         if (unpaidBills.length === 0) {
@@ -148,13 +194,10 @@ function selectBillForSnacks(billId, userName, pcs) {
     selectedBillInfo = { userName, pcs };
 
     closeBillSelection();
-    // Add a small delay to ensure modal is fully hidden
     setTimeout(() => {
         openSnacksPanel();
         playSound(800, 0.2);
-    }, 50); // 50ms delay
-    // openSnacksPanel();
-    // playSound(800, 0.2);
+    }, 50);
 }
 
 function closeBillSelection() {
@@ -164,10 +207,7 @@ function closeBillSelection() {
 async function openSnacksPanel() {
     const snacksPanel = document.getElementById('snacksPanel');
     const selectedBillInfoDiv = document.getElementById('selectedBillInfo');
-    console.log('Opening snacks panel...');
-    console.log('selectedBillInfo:', selectedBillInfo);
-    console.log('snacksPanel:', snacksPanel);
-    // Update selected bill info
+
     if (selectedBillInfo) {
         selectedBillInfoDiv.innerHTML = `
             <strong>Selected Bill:</strong> ${selectedBillInfo.userName}<br>
@@ -177,7 +217,6 @@ async function openSnacksPanel() {
 
     snacksPanel.classList.add('open');
 
-    // Load snacks data if not already loaded
     if (snacksData.length === 0) {
         await loadSnacksData();
     }
@@ -185,7 +224,6 @@ async function openSnacksPanel() {
 
 function closeSnacksPanel() {
     document.getElementById('snacksPanel').classList.remove('open');
-    // Reset workflow state
     currentBillId = null;
     selectedBillInfo = null;
     clearCart();
@@ -206,7 +244,6 @@ async function loadSnacksData() {
         }
 
         snacksData = await response.json();
-        console.log(snacksData);
         renderSnacksGrid();
         setupSnacksSearch();
         setupCategoryFilter();
@@ -229,21 +266,20 @@ async function fetchSnackImage(snackId, token) {
         return URL.createObjectURL(blob);
     } catch (err) {
         console.error('Failed to fetch image for snack:', snackId, err);
-        return ''; // fallback: empty src or placeholder image url
+        return '';
     }
 }
 
 async function renderSnacksGrid(filteredSnacks = null) {
     const snacksGrid = document.getElementById('snacksGrid');
     const snacksToRender = filteredSnacks || snacksData;
-    const token = localStorage.getItem('token');  // get your JWT token
+    const token = localStorage.getItem('token');
 
     if (snacksToRender.length === 0) {
         snacksGrid.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 20px;">No snacks found</div>';
         return;
     }
 
-    // First render the markup with placeholder src for images
     snacksGrid.innerHTML = snacksToRender.map(snack => {
         const cartItem = snacksCart.find(item => item.id === snack._id);
         const quantityInCart = cartItem ? cartItem.quantity : 0;
@@ -252,7 +288,7 @@ async function renderSnacksGrid(filteredSnacks = null) {
         return `
       <div class="snack-item" data-category="${snack.category}" id="snack-${snack._id}">
         <div class="snack-header">
-          <img src="" alt="${snack.name}" class="snack-img-preview" id="snack-img-${snack._id}" />
+          <img src="/placeholder.svg" alt="${snack.name}" class="snack-img-preview" id="snack-img-${snack._id}" />
           <div class="snack-info">
             <h4>${snack.name}</h4>
             <div class="snack-price">₹${snack.price}</div>
@@ -274,7 +310,6 @@ async function renderSnacksGrid(filteredSnacks = null) {
     `;
     }).join('');
 
-    // Then fetch each snack image with auth and update src dynamically
     for (const snack of snacksToRender) {
         const imgSrc = await fetchSnackImage(snack._id, token);
         if (imgSrc) {
@@ -286,11 +321,9 @@ async function renderSnacksGrid(filteredSnacks = null) {
     }
 }
 
-
 async function updateSnackQuantity(snackId, change) {
     const snack = snacksData.find(snacks => snacks._id === snackId);
     if (!snack) return;
-    // console.log(snack);
 
     const existingCartItem = snacksCart.find(item => item.id === snackId);
 
@@ -307,11 +340,9 @@ async function updateSnackQuantity(snackId, change) {
             quantity: 1
         });
     }
-    console.log(snacksCart);
 
     const updatedQuantity = snacksCart.find(item => item.id === snackId)?.quantity || 0;
 
-    // Update the quantity number
     const snackItemElement = document.querySelector(`[onclick="updateSnackQuantity('${snackId}', -1)"]`)?.closest('.snack-item');
     if (snackItemElement) {
         const qtyDisplay = snackItemElement.querySelector('.quantity-display');
@@ -324,7 +355,6 @@ async function updateSnackQuantity(snackId, change) {
     }
 
     playSound(change > 0 ? 800 : 400, 0.1);
-    // renderSnacksGrid();
     updateSnacksCart();
 }
 
@@ -378,7 +408,6 @@ async function addCartToBill() {
     }
 
     try {
-
         for (const item of snacksCart) {
             const res = await fetch(`/api/snacks/consume/${item.id}`, {
                 method: 'PUT',
@@ -392,7 +421,7 @@ async function addCartToBill() {
             if (!res.ok) {
                 const errData = await res.json();
                 alert(`Error with ${item.name}: ${errData.message}`);
-                return; // Stop the process if any snack fails
+                return;
             }
         }
 
@@ -412,23 +441,19 @@ async function addCartToBill() {
             throw new Error('Failed to add snacks to bill');
         }
 
-        const data = await response.json();
-
         playSound(1000, 0.5);
         alert('Snacks added to bill successfully!');
 
-        // Reset cart, close panel, and refresh data
-        clearCart(); // Clear snacksCart and update UI
+        clearCart();
         closeSnacksPanel();
         updateUnpaidBills();
-        await loadSnacksData(); // Refresh snacks with updated quantities
+        await loadSnacksData();
 
     } catch (error) {
         console.error('Error adding snacks to bill:', error);
         alert('Failed to add snacks to bill. Please try again.');
     }
 }
-
 
 function setupSnacksSearch() {
     const searchInput = document.getElementById('snacksSearch');
@@ -563,9 +588,7 @@ async function unfreezePC(formattedPcId) {
         const data = await res.json();
         if (res.ok) {
             alert(`✓ PC ${pcId} unfrozen successfully.`);
-            // Optionally re-render the PC cards
             updatePCTimes();
-            console.log(formattedPcId);
         } else {
             alert(`Failed to unfreeze PC: ${data.message}`);
         }
@@ -617,12 +640,14 @@ function confirmExtend(pcId, minutes) {
         extendTime(pcId, minutes);
     }
 }
+
 function unfreezePCConfirm(pcId) {
     const confirmed = confirm(`Are you sure you want to unfreeze the pc${pcId}?`);
     if (confirmed) {
         unfreezePC(pcId);
-    }   
+    }
 }
+
 function updateStatusCounts() {
     const pcCards = document.querySelectorAll('.pc-card');
 
@@ -642,10 +667,7 @@ function updateStatusCounts() {
 }
 
 function selectPC(pcId) {
-    console.log(`Trying to select PC: ${pcId}`);
-
     const pc = pcData.find(p => p.id === pcId);
-    console.log('Found PC data:', pc);
 
     if (!pc) {
         console.warn(`PC with ID ${pcId} not found in pcData.`);
@@ -653,7 +675,6 @@ function selectPC(pcId) {
     }
 
     if (pc.status !== 'available') {
-        console.warn(`PC ${pcId} is not available. Status: ${pc.status}`);
         playSound(300, 0.3);
         return;
     }
@@ -662,11 +683,9 @@ function selectPC(pcId) {
     const pcCard = event.currentTarget;
 
     if (selectedPCs.includes(pcId)) {
-        console.log(`Deselecting PC: ${pcId}`);
         selectedPCs = selectedPCs.filter(id => id !== pcId);
         pcCard.classList.remove('selected');
     } else {
-        console.log(`Selecting PC: ${pcId}`);
         selectedPCs.push(pcId);
         pcCard.classList.add('selected');
     }
@@ -674,10 +693,8 @@ function selectPC(pcId) {
     updateSelectedPCsList();
 
     if (selectedPCs.length > 0) {
-        console.log(`Selected PCs:`, selectedPCs);
         document.getElementById('bookSection').classList.add('show');
     } else {
-        console.log(`No PCs selected.`);
         document.getElementById('bookSection').classList.remove('show');
     }
 }
@@ -726,8 +743,6 @@ async function bookSelectedPCs() {
     const hours = parseFloat(document.getElementById('hoursSelect').value);
     const userName = document.getElementById('userName').value;
     const contactNumber = document.getElementById('contactNumber').value;
-
-    console.log(hours);
 
     if (!userName || !contactNumber) {
         alert('Please fill in all fields');
@@ -1020,13 +1035,12 @@ async function showPaymentModal(billId) {
             </div>
         `;
 
-        // Add event listener for dynamic discount effect
         const discountInput = document.getElementById('discountInput');
         const finalAmountDisplay = document.getElementById('finalAmount');
 
         discountInput.addEventListener('input', () => {
             let discount = parseFloat(discountInput.value) || 0;
-            discount = Math.max(0, Math.min(discount, bill.amount)); // Clamp discount between 0 and amount
+            discount = Math.max(0, Math.min(discount, bill.amount));
 
             const finalAmount = (bill.amount - discount).toFixed(2);
             finalAmountDisplay.textContent = finalAmount;
@@ -1042,7 +1056,6 @@ async function showPaymentModal(billId) {
     }
 }
 
-
 function closePaymentModal() {
     document.getElementById('paymentModal').classList.remove('show');
 }
@@ -1057,7 +1070,7 @@ async function confirmPayment() {
 
     if (useWallet) {
         const walletText = document.getElementById('walletCreditDisplay').innerText;
-        const match = walletText.match(/₹(\d+)/); // Extract number from "Available Wallet Credit: ₹xxx"
+        const match = walletText.match(/₹(\d+)/);
         if (match && match[1]) {
             wallet = parseInt(match[1], 10);
         }
@@ -1101,7 +1114,6 @@ async function confirmPayment() {
             loyaltyPoints: Math.floor(bill.gamingTotal / 100) * 5
         };
 
-        console.log(bill.gamingTotal);
         const customerRes = await fetch('http://localhost:3000/api/customer/createOrAdd', {
             method: 'POST',
             headers: {
@@ -1135,33 +1147,12 @@ async function confirmPayment() {
     }
 }
 
-function simulateRealTimeUpdates() {
-    setInterval(() => {
-        const randomIndex = Math.floor(Math.random() * pcData.length);
-        const pc = pcData[randomIndex];
-
-        if (pc.status === 'ending-soon') {
-            const currentTime = parseInt(pc.timeRemaining);
-            if (currentTime > 1) {
-                pc.timeRemaining = (currentTime - 1) + 'm';
-            } else {
-                pc.status = 'available';
-                pc.timeRemaining = 'Ready to Play';
-            }
-        } else if (pc.status === 'occupied') {
-            if (Math.random() < 0.02) {
-                pc.status = 'available';
-                pc.timeRemaining = 'Ready to Play';
-            }
-        }
-    }, 5000);
-}
-
 // Initialize
+createGamingStickers();
 createParticles();
+setupMenu();
 initializePCCards();
 updateUnpaidBills();
-simulateRealTimeUpdates();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function (e) {
@@ -1172,20 +1163,24 @@ document.addEventListener('keydown', function (e) {
         if (document.getElementById('snacksPanel').classList.contains('open')) {
             closeSnacksPanel();
         }
+
+        // Close menu if open
+        const menuToggle = document.getElementById('menuToggle');
+        const sideMenu = document.getElementById('sideMenu');
+        const menuOverlay = document.getElementById('menuOverlay');
+
+        if (sideMenu.classList.contains('open')) {
+            menuToggle.classList.remove('active');
+            sideMenu.classList.remove('open');
+            menuOverlay.classList.remove('active');
+        }
     }
 });
 
 // Close modals when clicking outside
 document.addEventListener('click', function (e) {
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggle = document.querySelector('.sidebar-toggle');
     const snacksPanel = document.getElementById('snacksPanel');
     const billSelectionModal = document.getElementById('billSelectionModal');
-
-    if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
-        sidebar.classList.remove('open');
-        document.getElementById('mainContent').classList.remove('shifted');
-    }
 
     if (!snacksPanel.contains(e.target) && !e.target.closest('.add-snacks-btn')) {
         if (snacksPanel.classList.contains('open')) {

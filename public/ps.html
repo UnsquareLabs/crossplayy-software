@@ -12,33 +12,50 @@
     <div class="background"></div>
     <div id="particles"></div>
 
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-title">CROSSPLAY MENU</div>
+    <!-- Gaming Stickers Background -->
+    <div class="gaming-stickers" id="gamingStickers"></div>
+
+    <!-- Menu Toggle -->
+    <div class="menu-toggle" id="menuToggle">
+        <div class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
         </div>
-        <ul class="sidebar-nav">
-            <li><a href="pc.html" onclick="setActiveSection('pc')"><span class="icon">🖥️</span>PC Gaming</a>
-            </li>
-            <li><a href="#" class="active" onclick="setActiveSection('ps5')"><span class="icon">🎮</span>PS5</a></li>
-            <li><a href="snacks.html" onclick="setActiveSection('snacks')"><span class="icon">🍿</span>Snacks</a></li>
-            <li><a href="PBills.html" onclick="setActiveSection('bills')"><span class="icon">💳</span>Bills</a></li>
-            <li><a href="customer.html" onclick="setActiveSection('user')"><span class="icon">👤</span>User Profile</a>
-            </li>
-        </ul>
     </div>
 
-    <!-- Sidebar Toggle -->
-    <button class="sidebar-toggle" onclick="toggleSidebar()">☰ Menu</button>
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Side Menu -->
+    <nav class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            <div class="menu-logo">CROSSPLAY</div>
+            <div class="menu-subtitle">Gaming Portal</div>
+        </div>
+        <div class="menu-items">
+            <a href="pc.html" class="menu-item">🎮 PC</a>
+            <a href="ps.html" class="menu-item active">🎮 PS5</a>
+            <a href="snacks.html" class="menu-item">🍿 Snacks</a>
+            <a href="PBills.html" class="menu-item">💰 Paid Bills</a>
+            <a href="editLogs.html" class="menu-item">📋 Edit logs</a>
+            <a href="customer.html" class="menu-item">👥 Customers</a>
+            <a href="analytics.html" class="menu-item">📊 analytics</a>
+            <a href="login.html" class="menu-item">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-text">CROSSPLAY PS5 LOUNGE</div>
+        </div>
+    </header>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <div class="container">
             <div class="left-section">
-                <div class="header">
-                    <h1 class="title">CROSSPLAY PS5 LOUNGE</h1>
-                </div>
-
                 <!-- Status Summary -->
                 <div class="status-summary">
                     <div class="status-card available">
