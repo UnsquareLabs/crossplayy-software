@@ -6,14 +6,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CROSSPLAY - Edit Logs</title>
     <link rel="stylesheet" href="editLogs.css">
-
 </head>
 
 <body>
     <div class="background"></div>
+    <div id="particles"></div>
 
-    <div class="header">
-        <h1>Edit Logs History</h1>
+    <!-- Gaming Stickers Background -->
+    <div class="gaming-stickers" id="gamingStickers"></div>
+
+    <!-- Menu Toggle -->
+    <div class="menu-toggle" id="menuToggle">
+        <div class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Side Menu -->
+    <nav class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            <div class="menu-logo">CROSSPLAY</div>
+            <div class="menu-subtitle">Gaming Portal</div>
+        </div>
+        <div class="menu-items">
+            <a href="pc.html" class="menu-item">🎮 PC</a>
+            <a href="ps.html" class="menu-item">🎮 PS5</a>
+            <a href="snacks.html" class="menu-item">🍿 Snacks</a>
+            <a href="PBills.html" class="menu-item">💰 Paid Bills</a>
+            <a href="customer.html" class="menu-item">👥 Customers</a>
+            <a href="analytics.html" class="menu-item">📊 Reports</a>
+            <a href="editLogs.html" class="menu-item active">📝 Edit Logs</a>
+            <a href="login.html" class="menu-item">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-logo">
+                <img src="images/crossplay-logo.png" alt="Crossplay Logo" class="logo-image">
+            </div>
+            <div class="logo-text">CROSSPLAY EDIT LOGS</div>
+        </div>
+    </header>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="🔍 Search by customer name or contact number..."
+                class="search-input">
+            <button class="clear-search-btn" id="clearSearchBtn" onclick="clearSearch()">Clear</button>
+        </div>
+        <div class="search-stats" id="searchStats"></div>
     </div>
 
     <div class="loading" id="loading">
@@ -24,6 +73,13 @@
     <div class="logs-container" id="logsContainer">
         <!-- Logs will be populated here -->
     </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="copyright">© 2025 Crossplay Gaming Café. All rights reserved.</div>
+            <div class="powered-by">Powered by <span class="unsquare">Unsquare</span></div>
+        </div>
+    </footer>
 
     <script src="editLogs.js"></script>
 

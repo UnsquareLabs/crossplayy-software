@@ -405,11 +405,19 @@ const editBill = async (req, res) => {
             return res.status(400).json({ message: 'No changes detected' });
         }
 
-        // Use bookingTime from bill instead of current time
         const bookingTimeUTC = new Date(bill.bookingTime);
-        // Convert bookingTime to IST by adding 5.5 hours
-        const bookingTimeIST = new Date(bookingTimeUTC.getTime() + 5.5 * 60 * 60 * 1000);
+
+        // Convert to IST using toLocaleString
+        const bookingTimeISTString = bookingTimeUTC.toLocaleString("en-US", {
+            timeZone: "Asia/Kolkata"
+        });
+        const bookingTimeIST = new Date(bookingTimeISTString);
+
+        console.log("bookingTimeIST:", bookingTimeIST);
+
         const hourIST = bookingTimeIST.getHours();
+        console.log("hourIST:", hourIST);
+
 
         let totalAmount = 0;
         const type = bill.type;
@@ -451,9 +459,9 @@ const editBill = async (req, res) => {
                 } else {
                     // After 10 PM pricing
                     if (players === 1) {
-                        totalAmount += 150; // flat rate for single player
+                        totalAmount += 150 * durationHours; // flat rate for single player
                     } else {
-                        totalAmount += 70 * players; // flat rate per player for multiplayer
+                        totalAmount += 70 * durationHours * players; // flat rate per player for multiplayer
                     }
                 }
             }
