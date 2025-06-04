@@ -295,9 +295,21 @@ function updateSnackQuantity(snackId, change) {
             quantity: 1
         });
     }
+    const updatedQuantity = snacksCart.find(item => item.id === snackId)?.quantity || 0;
 
+    // Update the quantity number
+    const snackItemElement = document.querySelector(`[onclick="updateSnackQuantity('${snackId}', -1)"]`)?.closest('.snack-item');
+    if (snackItemElement) {
+        const qtyDisplay = snackItemElement.querySelector('.quantity-display');
+        const minusBtn = snackItemElement.querySelector(`.qty-btn[onclick="updateSnackQuantity('${snackId}', -1)"]`);
+        const plusBtn = snackItemElement.querySelector(`.qty-btn[onclick="updateSnackQuantity('${snackId}', 1)"]`);
+
+        qtyDisplay.textContent = updatedQuantity;
+        minusBtn.disabled = updatedQuantity <= 0;
+        plusBtn.disabled = updatedQuantity >= snack.quantity;
+    }
     playSound(change > 0 ? 800 : 400, 0.1);
-    renderSnacksGrid();
+    // renderSnacksGrid();
     updateSnacksCart();
 }
 
@@ -351,36 +363,44 @@ async function addCartToBill() {
     }
 
     try {
+        for (const item of snacksCart) {
+            const res = await fetch(`/api/snacks/consume/${item.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ usedQuantity: item.quantity }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                alert(`Error with ${item.name}: ${errData.message}`);
+                return; // Stop the process if any snack fails
+            }
+        }
+
         // Add snacks to bill
-        const response = await fetch(`http://localhost:3000/api/bills/${currentBillId}/add-snacks`, {
-            method: 'PUT',
+        const response = await fetch('http://localhost:3000/api/bills/addSnack', {
+            method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ snacks: snacksCart })
+            body: JSON.stringify({
+                billId: currentBillId,
+                snacks: snacksCart
+            })
         });
 
         if (!response.ok) {
             throw new Error('Failed to add snacks to bill');
         }
 
-        // Update snack quantities in database
-        for (const cartItem of snacksCart) {
-            await fetch(`http://localhost:3000/api/snacks/${cartItem.id}/update-quantity`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ quantityUsed: cartItem.quantity })
-            });
-        }
-
         // Success feedback
         playSound(1000, 0.5);
         alert('Snacks added to bill successfully!');
-
+        clearCart();
         // Clean up and refresh
         closeSnacksPanel();
         updateUnpaidBills();
@@ -561,7 +581,7 @@ async function updatePSTimes() {
                 <button class="extend-btn" onclick="confirmExtend(${ps.id}, 30); event.stopPropagation();">+30m</button>
             `;
             unfreeze.innerHTML = `
-                <button class="unfreeze-btn" onclick="event.stopPropagation(); unfreezePS('${ps.id}')">Unfreeze</button>
+                <button class="unfreeze-btn" onclick="event.stopPropagation(); unfreezePSConfirm('${ps.id}')">Unfreeze</button>
             `
         } else {
             extendDiv.innerHTML = '';
@@ -579,7 +599,12 @@ function confirmExtend(psId, minutes) {
         extendTime(psId, minutes);
     }
 }
-
+function unfreezePSConfirm(psId) {
+    const confirmed = confirm(`Are you sure you want to unfreeze the ps${psId}?`);
+    if (confirmed) {
+        unfreezePS(psId);
+    }
+}
 function updateStatusCounts() {
     const psCards = document.querySelectorAll('.ps-card');
 

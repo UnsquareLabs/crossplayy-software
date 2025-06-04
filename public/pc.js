@@ -599,7 +599,7 @@ async function updatePCTimes() {
                 <button class="extend-btn" onclick="confirmExtend(${pc.id}, 30); event.stopPropagation();">+30m</button>
             `;
             unfreeze.innerHTML = `
-                <button class="unfreeze-btn" onclick="event.stopPropagation(); unfreezePC('${pc.id}')">Unfreeze</button>
+                <button class="unfreeze-btn" onclick="event.stopPropagation(); unfreezePCConfirm('${pc.id}')">Unfreeze</button>
             `
         } else {
             extendDiv.innerHTML = '';
@@ -617,7 +617,12 @@ function confirmExtend(pcId, minutes) {
         extendTime(pcId, minutes);
     }
 }
-
+function unfreezePCConfirm(pcId) {
+    const confirmed = confirm(`Are you sure you want to unfreeze the pc${pcId}?`);
+    if (confirmed) {
+        unfreezePC(pcId);
+    }   
+}
 function updateStatusCounts() {
     const pcCards = document.querySelectorAll('.pc-card');
 
