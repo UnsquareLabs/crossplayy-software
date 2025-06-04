@@ -156,7 +156,7 @@ const extendBill = async (req, res) => {
                 // Convert to unpaid and reset amounts
                 bill.status = false;
                 bill.paidAmt = bill.amount;
-                bill.amount = 0;
+                // bill.amount = 0;
                 bill.remainingAmt = 0;
             }
 
@@ -185,7 +185,7 @@ const extendBill = async (req, res) => {
                 // Convert to unpaid and reset amounts
                 bill.status = false;
                 bill.paidAmt = bill.amount;
-                bill.amount = 0;
+                // bill.amount = 0;
                 bill.remainingAmt = 0;
             }
 
@@ -256,7 +256,7 @@ const markBillAsPaid = async (req, res) => {
         }
 
         const totalDue = bill.amount;
-        const effectivePaid = totalDue - discount;
+        const effectivePaid = totalDue - discount - bill.paidAmt;
 
         console.log(`💰 Total due: ₹${totalDue}, Effective to be paid after discount: ₹${effectivePaid}`);
 
@@ -266,9 +266,9 @@ const markBillAsPaid = async (req, res) => {
 
         if (wallet >= effectivePaid) {
 
-            // Zero out other payment methods
-            cash = 0;
-            upi = 0;
+            // // Zero out other payment methods
+            // cash = 0;
+            // upi = 0;
 
             if (foundCustomer) {
                 foundCustomer.walletCredit -= effectivePaid;
@@ -277,12 +277,19 @@ const markBillAsPaid = async (req, res) => {
 
             // Mark bill as paid
             bill.status = true;
-            bill.cash = 0;
-            bill.upi = 0;
-            bill.discount = discount;
-            bill.wallet = effectivePaid;
-            bill.paidAmt = effectivePaid;
+            // bill.cash = 0;
+            // bill.upi = 0;
+            bill.discount += discount;
+            bill.wallet += effectivePaid;
+            bill.paidAmt += effectivePaid;
             bill.remainingAmt = 0;
+            bill.snacksTotal = 0;
+
+            // Mark all snacks as paid
+            bill.snacks = bill.snacks.map(snack => ({
+                ...snack.toObject(), // convert Mongoose subdoc to plain object
+                paidFor: true
+            }));
 
             const updatedBill = await bill.save();
             return res.status(200).json({ message: 'Bill marked as paid using wallet balance', bill: updatedBill });
@@ -301,12 +308,19 @@ const markBillAsPaid = async (req, res) => {
             }
 
             bill.status = true;
-            bill.cash = cash;
-            bill.upi = upi;
-            bill.discount = discount;
-            bill.wallet = wallet;
-            bill.paidAmt = effectivePaid;
+            bill.cash += cash;
+            bill.upi += upi;
+            bill.discount += discount;
+            bill.wallet += wallet;
+            bill.paidAmt += effectivePaid;
             bill.remainingAmt = 0;
+            bill.snacksTotal = 0;
+
+            // Mark all snacks as paid
+            bill.snacks = bill.snacks.map(snack => ({
+                ...snack.toObject(), // convert Mongoose subdoc to plain object
+                paidFor: true
+            }));
 
             const updatedBill = await bill.save();
             return res.status(200).json({ message: 'Bill marked as paid', bill: updatedBill });
@@ -509,17 +523,21 @@ const addSnacksToBill = async (req, res) => {
             return res.status(404).json({ message: 'Bill not found' });
         }
 
+        bill.amount -= bill.snacksTotal;
+        bill.remainingAmt -= bill.snacksTotal;
+
         // Add snacks to bill
         const newSnacks = snacks.map(snack => ({
             name: snack.name,
             quantity: snack.quantity,
-            price: snack.price
+            price: snack.price,
+            paidFor: false
         }));
 
         bill.snacks = [...bill.snacks, ...newSnacks];
 
         // Recalculate snacksTotal
-        const updatedSnacksTotal = bill.snacks.reduce((sum, snack) => {
+        const updatedSnacksTotal = bill.snacks.filter(snack => !snack.paidFor).reduce((sum, snack) => {
             return sum + (snack.quantity * snack.price);
         }, 0);
         bill.snacksTotal = updatedSnacksTotal;

@@ -86,7 +86,8 @@ const billSchema = new mongoose.Schema({
     {
       name: { type: String, required: true },
       quantity: { type: Number, required: true },
-      price: { type: Number, required: true } // unit price
+      price: { type: Number, required: true }, // unit price
+      paidFor: { type: Boolean, default: false } 
     }
   ],
   billedBy: {
