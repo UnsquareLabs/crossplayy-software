@@ -203,6 +203,7 @@ async function editBill(billId) {
         document.getElementById('editDiscount').value = bill.discount || 0;
         document.getElementById('editCash').value = bill.cash || 0;
         document.getElementById('editUpi').value = bill.upi || 0;
+        document.getElementById('editWallet').value = bill.wallet || 0;
         // Example inside your editBill after units are loaded
         toggleUnitGroups(bill.pcUnits, bill.psUnits);
 
@@ -404,6 +405,7 @@ async function submitBillEdit() {
     const cash = Number(document.getElementById('editCash').value) || 0;
     const upi = Number(document.getElementById('editUpi').value) || 0;
     const discount = Number(document.getElementById('editDiscount').value) || 0;
+    const wallet = Number(document.getElementById('editWallet').value) || 0;
 
 
     const pcUnits = Array.from(document.querySelectorAll('#editPcUnitsContainer .pc-unit-row')).map(row => ({
@@ -419,7 +421,8 @@ async function submitBillEdit() {
     const updatedBill = {
         cash,
         upi,
-        discount
+        discount,
+        wallet
     };
 
     if (pcUnits.length > 0) {

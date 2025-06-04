@@ -25,6 +25,14 @@ const editLogSchema = new mongoose.Schema(
           type: Number,
           required: true,
         },
+        wallet: {
+          type: Number,
+          required: true,
+        },
+        amount: {
+          type: Number,
+          required: true,
+        },
         pcUnits: [
           {
             pcId: {

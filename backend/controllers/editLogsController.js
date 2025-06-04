@@ -38,6 +38,8 @@ const logBillEdit = async (req, res) => {
             discount: bill.discount,
             cash: bill.cash,
             UPI: bill.upi,
+            wallet: bill.wallet,
+            amount: bill.amount,
             pcUnits: bill.pcUnits,
             psUnits: bill.psUnits,
             editedBy: req.user.email,

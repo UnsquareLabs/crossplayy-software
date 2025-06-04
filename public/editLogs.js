@@ -141,9 +141,10 @@ function renderVersionsTable(versions, bill) {
             changes.cash = version.cash !== prevVersion.cash;
             changes.upi = version.UPI !== prevVersion.UPI;
             changes.discount = version.discount !== prevVersion.discount;
+            changes.wallet = version.wallet !== prevVersion.wallet;
             changes.units = unitsChanged(prevVersion.pcUnits, version.pcUnits) ||
                 unitsChanged(prevVersion.psUnits, version.psUnits);
-            changes.amount = calculateAmount(version) !== calculateAmount(prevVersion);
+            changes.amount = version.amount !== prevVersion.amount;
         }
 
         // Store current version as previous for next iteration
@@ -159,9 +160,9 @@ function renderVersionsTable(versions, bill) {
                         <td>${bill?.bookingTime ? formatDate(bill.bookingTime) : '<span class="empty-cell">—</span>'}</td>
                         <td class="${!isFirstVersion && changes.cash ? 'changed-cell' : ''}">₹${version.cash || 0}</td>
                         <td class="${!isFirstVersion && changes.upi ? 'changed-cell' : ''}">₹${version.UPI || 0}</td>
-                        <td>₹${bill?.wallet || 0}</td>
+                        <td class="${!isFirstVersion && changes.wallet ? 'changed-cell' : ''}">₹${version.wallet || 0}</td>
                         <td class="${!isFirstVersion && changes.discount ? 'changed-cell' : ''}">₹${version.discount || 0}</td>
-                        <td class="amount-cell ${!isFirstVersion && changes.amount ? 'changed-cell' : ''}">₹${calculateAmount(version)}</td>
+                        <td class="amount-cell ${!isFirstVersion && changes.amount ? 'changed-cell' : ''}">₹${version.amount || 0}</td>
                         <td>${bill?.billedBy || '<span class="empty-cell">—</span>'}</td>
                         <td>${version.editedBy}</td>
                     </tr>
@@ -176,10 +177,11 @@ function renderVersionsTable(versions, bill) {
         currentChanges.cash = bill.cash !== lastVersion.cash;
         currentChanges.upi = bill.upi !== lastVersion.UPI;
         currentChanges.discount = bill.discount !== lastVersion.discount;
+        currentChanges.wallet = bill.wallet !== lastVersion.wallet;
         currentChanges.units = unitsChanged(lastVersion.pcUnits, bill.pcUnits) ||
             unitsChanged(lastVersion.psUnits, bill.psUnits);
-        currentChanges.amount = bill.amount !== calculateAmount(lastVersion);
-        currentChanges.wallet = bill.wallet > 0; // Highlight wallet if it has value
+        currentChanges.amount = bill.amount !== lastVersion.amount;
+        // currentChanges.wallet = bill.wallet > 0; // Highlight wallet if it has value
     }
 
     // Add current version row

@@ -1,5 +1,6 @@
 const Bill = require('../models/bills.models');
 const Customer = require('../models/customer.models');
+const EditLog = require('../models/editLogs.models');
 
 // Create new bill
 const createBill = async (req, res) => {
@@ -421,6 +422,13 @@ const editBill = async (req, res) => {
         const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(discount);
         totalAmount = Math.round(totalAmount);
         if (totalPaid !== totalAmount) {
+            // Remove the most recent edit log entry for this billId
+            // Attempt to delete the most recent edit log entry for this billId
+            const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
+
+            if (deletedLog) {
+                console.log(`Deleted edit log for billId: ${id}`);
+            }
             return res.status(400).json({
                 message: `Invalid payment values: cash + upi - discount = ₹${totalPaid} but recalculated amount is ₹${totalAmount}. They must be equal.`
             });
