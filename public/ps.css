@@ -562,7 +562,9 @@ body {
     transform: translateY(-2px);
 }
 
+
 .unfreeze-btn {
+    margin-top: 5px;
     padding: 4px 8px;
     background-color: rgba(220, 53, 69, 0.2);
     color: #dc3545;
@@ -571,12 +573,12 @@ body {
     font-size: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
-    width: 100%;
 }
 
 .unfreeze-btn:hover {
     background-color: rgba(220, 53, 69, 0.3);
 }
+
 
 /* Bills Section */
 .bills-section {
