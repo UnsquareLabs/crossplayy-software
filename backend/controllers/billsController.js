@@ -347,6 +347,50 @@ const editBill = async (req, res) => {
             return res.status(404).json({ message: 'Bill not found' });
         }
 
+        // Normalize pcUnits by keeping only relevant fields
+        const normalizePCUnits = (units) =>
+            units.map(({ pcId, duration }) => ({ pcId, duration }))
+                .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+        // Normalize psUnits including noOfPlayers
+        const normalizePSUnits = (units) =>
+            units.map(({ psId, duration, players }) => ({ psId, duration, players }))
+                .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+        const normalizedExistingPC = normalizePCUnits(bill.pcUnits);
+        const normalizedIncomingPC = normalizePCUnits(pcUnits);
+
+        const normalizedExistingPS = normalizePSUnits(bill.psUnits);
+        const normalizedIncomingPS = normalizePSUnits(psUnits);
+
+        console.log('--- Field Comparison ---');
+        console.log(`cash: existing=${bill.cash}, incoming=${cash}`);
+        console.log(`upi: existing=${bill.upi}, incoming=${upi}`);
+        console.log(`wallet: existing=${bill.wallet}, incoming=${wallet}`);
+        console.log(`discount: existing=${bill.discount}, incoming=${discount}`);
+        console.log(`pcUnits: existing=${JSON.stringify(normalizedExistingPC)}, incoming=${JSON.stringify(normalizedIncomingPC)}`);
+        console.log(`psUnits: existing=${JSON.stringify(normalizedExistingPS)}, incoming=${JSON.stringify(normalizedIncomingPS)}`);
+
+        const isSame =
+            bill.cash === cash &&
+            bill.upi === upi &&
+            bill.wallet === wallet &&
+            bill.discount === discount &&
+            JSON.stringify(normalizedExistingPC) === JSON.stringify(normalizedIncomingPC) &&
+            JSON.stringify(normalizedExistingPS) === JSON.stringify(normalizedIncomingPS);
+
+        if (isSame) {
+            // Remove the most recent edit log entry for this billId
+            // Attempt to delete the most recent edit log entry for this billId
+            const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
+
+            if (deletedLog) {
+                console.log(`Deleted edit log for billId: ${id}`);
+            }
+            console.log('No changes detected. Aborting update.');
+            return res.status(400).json({ message: 'No changes detected' });
+        }
+
         // Use bookingTime from bill instead of current time
         const bookingTimeUTC = new Date(bill.bookingTime);
         // Convert bookingTime to IST by adding 5.5 hours
