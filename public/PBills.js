@@ -192,7 +192,7 @@ function renderBills(bills) {
 async function editBill(billId) {
     try {
         console.log("Editing bill ID:", billId);
-        const res = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+        const res = await fetch(`/api/bills/${billId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -312,7 +312,7 @@ function renderPsUnitsFields(psUnits) {
 // Fetch and render paid bills
 async function fetchAndRenderPaidBills() {
     try {
-        const res = await fetch('http://localhost:3000/api/bills/all', {
+        const res = await fetch('/api/bills/all', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -361,7 +361,7 @@ async function deleteBill(billId) {
     playSound(800, 0.3);
     if (confirm('Are you sure you want to delete this bill? This action cannot be undone.')) {
         try {
-            const res = await fetch(`http://localhost:3000/api/bills/delete/${billId}`, {
+            const res = await fetch(`/api/bills/delete/${billId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -440,7 +440,7 @@ async function submitBillEdit() {
     }
     try {
         // 🔁 Step 1: Log the old bill before updating
-        const logRes = await fetch(`http://localhost:3000/api/edit/logs`, {
+        const logRes = await fetch(`/api/edit/logs`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -455,7 +455,7 @@ async function submitBillEdit() {
             return;
         }
 
-        const res = await fetch(`http://localhost:3000/api/bills/edit/${currentEditingId}`, {
+        const res = await fetch(`/api/bills/edit/${currentEditingId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,

@@ -140,7 +140,7 @@ function createParticles() {
 // Snacks Workflow Functions
 async function startSnacksWorkflow() {
     try {
-        const response = await fetch("http://localhost:3000/api/bills/all", {
+        const response = await fetch("/api/bills/all", {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,

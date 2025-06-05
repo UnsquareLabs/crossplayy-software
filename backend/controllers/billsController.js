@@ -413,10 +413,10 @@ const editBill = async (req, res) => {
         });
         const bookingTimeIST = new Date(bookingTimeISTString);
 
-        console.log("bookingTimeIST:", bookingTimeIST);
+        // console.log("bookingTimeIST:", bookingTimeIST);
 
         const hourIST = bookingTimeIST.getHours();
-        console.log("hourIST:", hourIST);
+        // console.log("hourIST:", hourIST);
 
 
         let totalAmount = 0;

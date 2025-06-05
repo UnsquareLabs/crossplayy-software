@@ -3,14 +3,15 @@ const token = localStorage.getItem('token');
 if (!token) {
     alert('Unauthorized access. Please log in first.');
     window.location.href = 'login.html'; // Redirect to login page
-  
 
-function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('token');
-        window.location.href = 'login.html';
+
+    function logout() {
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        }
     }
-}}
+}
 // Global variables
 let customersData = [];
 let currentEditingId = null;
@@ -171,7 +172,7 @@ function renderCustomers(customers) {
 // Fetch and render customers
 async function fetchAndRenderCustomers() {
     try {
-        const res = await fetch('http://localhost:3000/api/customer/all', {
+        const res = await fetch('/api/customer/all', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -252,7 +253,7 @@ async function deleteCustomer(customerId) {
     playSound(800, 0.3);
     if (confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
         try {
-            const res = await fetch(`http://localhost:3000/api/customer/delete/${customerId}`, {
+            const res = await fetch(`/api/customer/delete/${customerId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -296,7 +297,7 @@ document.getElementById('customerForm').addEventListener('submit', async functio
     try {
         let res;
         if (isEditMode && currentEditingId) {
-            res = await fetch(`http://localhost:3000/api/customer/edit/${currentEditingId}`, {
+            res = await fetch(`/api/customer/edit/${currentEditingId}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -305,7 +306,7 @@ document.getElementById('customerForm').addEventListener('submit', async functio
                 body: JSON.stringify(customerData)
             });
         } else {
-            res = await fetch('http://localhost:3000/api/customer/onlyCreate', {
+            res = await fetch('/api/customer/onlyCreate', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

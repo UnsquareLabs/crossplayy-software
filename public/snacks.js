@@ -209,7 +209,7 @@ async function renderSnacks(snacks) {
 // Fetch and render snacks
 async function fetchAndRenderSnacks() {
     try {
-        const res = await fetch("http://localhost:3000/api/snacks/all", {
+        const res = await fetch("/api/snacks/all", {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -286,7 +286,7 @@ async function deleteSnack(snackId) {
     playSound(800, 0.3)
     if (confirm("Are you sure you want to delete this snack? This action cannot be undone.")) {
         try {
-            const res = await fetch(`http://localhost:3000/api/snacks/delete/${snackId}`, {
+            const res = await fetch(`/api/snacks/delete/${snackId}`, {
                 method: "DELETE",
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -332,7 +332,7 @@ async function decreaseQuantity(snackId) {
 // Update snack quantity using boolean flag
 async function updateSnackQuantity(snackId, increase) {
     try {
-        const res = await fetch(`http://localhost:3000/api/snacks/editQuant/${snackId}`, {
+        const res = await fetch(`/api/snacks/editQuant/${snackId}`, {
             method: "PUT",
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -440,7 +440,7 @@ document.getElementById("snackForm").addEventListener("submit", async (e) => {
     try {
         let res
         if (isEditMode && currentEditingId) {
-            res = await fetch(`http://localhost:3000/api/snacks/edit/${currentEditingId}`, {
+            res = await fetch(`/api/snacks/edit/${currentEditingId}`, {
                 method: "PUT",
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -449,7 +449,7 @@ document.getElementById("snackForm").addEventListener("submit", async (e) => {
             })
             message = "✓ Snack updated successfully!";
         } else {
-            res = await fetch("http://localhost:3000/api/snacks/create", {
+            res = await fetch("/api/snacks/create", {
                 method: "POST",
                 headers: {
                     'Authorization': `Bearer ${token}`

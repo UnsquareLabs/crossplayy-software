@@ -354,7 +354,7 @@ async function generateAnalytics() {
     playSound(800, 0.3);
 
     try {
-        const response = await fetch('http://localhost:3000/api/analytics/earnings', {
+        const response = await fetch('/api/analytics/earnings', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,

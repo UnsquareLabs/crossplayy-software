@@ -128,7 +128,7 @@ function createParticles() {
 // Snacks Workflow Functions
 async function startSnacksWorkflow() {
     try {
-        const response = await fetch('http://localhost:3000/api/bills/all', {
+        const response = await fetch('/api/bills/all', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -238,7 +238,7 @@ function closeSnacksPanel() {
 
 async function loadSnacksData() {
     try {
-        const response = await fetch('http://localhost:3000/api/snacks/all', {
+        const response = await fetch('/api/snacks/all', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -431,7 +431,7 @@ async function addCartToBill() {
             }
         }
 
-        const response = await fetch('http://localhost:3000/api/bills/addSnack', {
+        const response = await fetch('/api/bills/addSnack', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -493,7 +493,7 @@ function setupCategoryFilter() {
 // PC Management Functions
 async function fetchPCStatus(pcId) {
     try {
-        const res = await fetch(`http://localhost:3000/api/pc/timeleft/PC${pcId}`, {
+        const res = await fetch(`/api/pc/timeleft/PC${pcId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -519,7 +519,7 @@ async function fetchPCStatus(pcId) {
         }
 
         if (status === 'available') {
-            const billsRes = await fetch('http://localhost:3000/api/bills/all', {
+            const billsRes = await fetch('/api/bills/all', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -582,7 +582,7 @@ async function initializePCCards() {
 async function unfreezePC(formattedPcId) {
     const pcId = formattedPcId.toString().startsWith('pc') ? formattedPcId : `PC${formattedPcId}`;
     try {
-        const res = await fetch('http://localhost:3000/api/pc/unfreeze', {
+        const res = await fetch('/api/pc/unfreeze', {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -763,7 +763,7 @@ async function bookSelectedPCs() {
     }));
 
     try {
-        const response = await fetch('http://localhost:3000/api/pc/book', {
+        const response = await fetch('/api/pc/book', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -786,7 +786,7 @@ async function bookSelectedPCs() {
             type: 'pc'
         };
 
-        const billResponse = await fetch('http://localhost:3000/api/bills/create', {
+        const billResponse = await fetch('/api/bills/create', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(billPayload)
@@ -819,7 +819,7 @@ async function extendTime(pcId, minutes) {
     playSound(600, 0.2);
 
     try {
-        const billResponse = await fetch('http://localhost:3000/api/bills/extend-bill', {
+        const billResponse = await fetch('/api/bills/extend-bill', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -836,7 +836,7 @@ async function extendTime(pcId, minutes) {
             console.warn("⚠️ Failed to update bill:", billData.message);
         }
 
-        const bookingResponse = await fetch('http://localhost:3000/api/pc/extend-booking', {
+        const bookingResponse = await fetch('/api/pc/extend-booking', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -866,7 +866,7 @@ async function updateUnpaidBills() {
     unpaidBillsContainer.innerHTML = '<div style="text-align: center; opacity: 0.6;">Loading bills...</div>';
 
     try {
-        const res = await fetch('http://localhost:3000/api/bills/all', {
+        const res = await fetch('/api/bills/all', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -934,7 +934,7 @@ async function updateUnpaidBills() {
 
 async function showPaymentModal(billId) {
     try {
-        const res = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+        const res = await fetch(`/api/bills/${billId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -1086,7 +1086,7 @@ async function confirmPayment() {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/api/bills/${billId}/pay`, {
+        const response = await fetch(`/api/bills/${billId}/pay`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -1101,7 +1101,7 @@ async function confirmPayment() {
             return;
         }
 
-        const billRes = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+        const billRes = await fetch(`/api/bills/${billId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -1120,7 +1120,7 @@ async function confirmPayment() {
             loyaltyPoints: Math.floor(bill.gamingTotal / 100) * 5
         };
 
-        const customerRes = await fetch('http://localhost:3000/api/customer/createOrAdd', {
+        const customerRes = await fetch('/api/customer/createOrAdd', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,

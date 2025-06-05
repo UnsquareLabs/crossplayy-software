@@ -139,7 +139,7 @@ function formatDate(dateString) {
 // Fetch edit logs
 async function fetchEditLogs() {
     try {
-        const response = await fetch("http://localhost:3000/api/edit/all-logs", {
+        const response = await fetch("/api/edit/all-logs", {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -162,7 +162,7 @@ async function fetchEditLogs() {
 // Fetch all bills
 async function fetchAllBills() {
     try {
-        const response = await fetch("http://localhost:3000/api/bills/all", {
+        const response = await fetch("/api/bills/all", {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
