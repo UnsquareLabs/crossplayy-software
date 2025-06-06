@@ -3,7 +3,7 @@ const express = require('express');
 const app = require('./backend/app');  // your backend Express app
 const open = require('open');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
 // Serve frontend static files from public folder
 app.use(express.static(path.join(__dirname, 'public')));
