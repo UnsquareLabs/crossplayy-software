@@ -254,7 +254,7 @@ function closeSnacksPanel() {
 
 async function loadSnacksData() {
     try {
-        const response = await fetch("http://localhost:3000/api/snacks/all", {
+        const response = await fetch("/api/snacks/all", {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -453,7 +453,7 @@ async function addCartToBill() {
             }
         }
 
-        const response = await fetch("http://localhost:3000/api/bills/addSnack", {
+        const response = await fetch("/api/bills/addSnack", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -510,7 +510,7 @@ function setupCategoryFilter() {
 // PS Management Functions
 async function fetchPSStatus(psId) {
     try {
-        const res = await fetch(`http://localhost:3000/api/ps/timeleft/PS${psId}`, {
+        const res = await fetch(`/api/ps/timeleft/PS${psId}`, {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -536,7 +536,7 @@ async function fetchPSStatus(psId) {
         }
 
         if (status === "available") {
-            const billsRes = await fetch("http://localhost:3000/api/bills/all", {
+            const billsRes = await fetch("/api/bills/all", {
                 method: "GET",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -598,7 +598,7 @@ async function initializePSCards() {
 async function unfreezePS(formattedPsId) {
     const psId = formattedPsId.toString().startsWith("ps") ? formattedPsId : `PS${formattedPsId}`
     try {
-        const res = await fetch("http://localhost:3000/api/ps/unfreeze", {
+        const res = await fetch("/api/ps/unfreeze", {
             method: "PUT",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -799,7 +799,7 @@ async function bookSelectedPSs() {
     }))
 
     try {
-        const response = await fetch("http://localhost:3000/api/ps/book", {
+        const response = await fetch("/api/ps/book", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -822,7 +822,7 @@ async function bookSelectedPSs() {
             type: "ps",
         }
 
-        const billResponse = await fetch("http://localhost:3000/api/bills/create", {
+        const billResponse = await fetch("/api/bills/create", {
             method: "POST",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
             body: JSON.stringify(billPayload),
@@ -854,7 +854,7 @@ async function extendTime(psId, minutes) {
     playSound(600, 0.2)
 
     try {
-        const billResponse = await fetch("http://localhost:3000/api/bills/extend-bill", {
+        const billResponse = await fetch("/api/bills/extend-bill", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -871,7 +871,7 @@ async function extendTime(psId, minutes) {
             console.warn("⚠️ Failed to update bill:", billData.message)
         }
 
-        const bookingResponse = await fetch("http://localhost:3000/api/ps/extend-booking", {
+        const bookingResponse = await fetch("/api/ps/extend-booking", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -900,7 +900,7 @@ async function updateUnpaidBills() {
     unpaidBillsContainer.innerHTML = '<div style="text-align: center; opacity: 0.6;">Loading bills...</div>'
 
     try {
-        const res = await fetch("http://localhost:3000/api/bills/all", {
+        const res = await fetch("/api/bills/all", {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -969,7 +969,7 @@ async function updateUnpaidBills() {
 
 async function showPaymentModal(billId) {
     try {
-        const res = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+        const res = await fetch(`/api/bills/${billId}`, {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -1125,7 +1125,7 @@ async function confirmPayment() {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/api/bills/${billId}/pay`, {
+        const response = await fetch(`/api/bills/${billId}/pay`, {
             method: "PUT",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -1140,7 +1140,7 @@ async function confirmPayment() {
             return
         }
 
-        const billRes = await fetch(`http://localhost:3000/api/bills/${billId}`, {
+        const billRes = await fetch(`/api/bills/${billId}`, {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -1159,7 +1159,7 @@ async function confirmPayment() {
             loyaltyPoints: Math.floor(bill.gamingTotal / 100) * 5,
         }
 
-        const customerRes = await fetch("http://localhost:3000/api/customer/createOrAdd", {
+        const customerRes = await fetch("/api/customer/createOrAdd", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${token}`,

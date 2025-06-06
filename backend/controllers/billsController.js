@@ -38,6 +38,20 @@ const createBill = async (req, res) => {
 
         let totalAmount = 0;
 
+        // Normal hours 9 am to 10 pm
+        // 1 player - 100
+        // 2 player - 55/person/hour
+        // 3 player - 50/person/hour
+        // 4 player - 45/person/hour
+
+        // PC - 50rs/person/hour
+
+        // After 10 pm
+
+        // Flat 60/person/hour 
+        // Single player - 120rs
+
+        // Ps or pc
         if (type === 'pc') {
             // PC Pricing: before 10 PM ₹50/hr, else ₹60/hr
             const ratePerHour = hourIST < 22 ? 50 : 60;
@@ -59,13 +73,13 @@ const createBill = async (req, res) => {
                 if (hourIST < 22) {
                     switch (players) {
                         case 4:
-                            ratePerPlayerHour = 40;
-                            break;
-                        case 3:
                             ratePerPlayerHour = 45;
                             break;
-                        case 2:
+                        case 3:
                             ratePerPlayerHour = 50;
+                            break;
+                        case 2:
+                            ratePerPlayerHour = 55;
                             break;
                         case 1:
                             ratePerPlayerHour = 100;
@@ -78,9 +92,10 @@ const createBill = async (req, res) => {
                 } else {
                     // After 10 PM pricing
                     if (players === 1) {
-                        totalAmount += 150; // flat rate for single player
+                        ratePerPlayerHour = 120;
+                        totalAmount += durationHours * players * ratePerPlayerHour; // flat rate for single player
                     } else {
-                        totalAmount += 70 * players; // flat rate per player for multiplayer
+                        totalAmount += 70 * players * durationHours; // flat rate per player for multiplayer
                     }
                 }
             }
@@ -166,7 +181,7 @@ const extendBill = async (req, res) => {
             }
 
             unit.duration += extendTime;
-            extendCost = extendTime === 15 ? 20 : 25;
+            extendCost = extendTime === 15 ? 25 : 40;
 
         } else {
             // type === 'ps'
@@ -195,7 +210,13 @@ const extendBill = async (req, res) => {
             }
 
             unit.duration += extendTime;
-            extendCost = extendTime === 15 ? 30 : 40;
+            // 💰 New PS pricing logic
+            const players = unit.players || 1; // default to 1 if missing
+            if (extendTime === 15) {
+                extendCost = players === 1 ? 25 : 15;
+            } else {
+                extendCost = players === 1 ? 40 : 30;
+            }
         }
 
         // Add extend cost to amount and remainingAmt
@@ -441,13 +462,13 @@ const editBill = async (req, res) => {
                     let ratePerPlayerHour = 0;
                     switch (players) {
                         case 4:
-                            ratePerPlayerHour = 40;
-                            break;
-                        case 3:
                             ratePerPlayerHour = 45;
                             break;
-                        case 2:
+                        case 3:
                             ratePerPlayerHour = 50;
+                            break;
+                        case 2:
+                            ratePerPlayerHour = 55;
                             break;
                         case 1:
                             ratePerPlayerHour = 100;
@@ -459,7 +480,7 @@ const editBill = async (req, res) => {
                 } else {
                     // After 10 PM pricing
                     if (players === 1) {
-                        totalAmount += 150 * durationHours; // flat rate for single player
+                        totalAmount += 120 * durationHours; // flat rate for single player
                     } else {
                         totalAmount += 70 * durationHours * players; // flat rate per player for multiplayer
                     }
