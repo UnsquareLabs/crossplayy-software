@@ -95,7 +95,7 @@ const createBill = async (req, res) => {
                         ratePerPlayerHour = 120;
                         totalAmount += durationHours * players * ratePerPlayerHour; // flat rate for single player
                     } else {
-                        totalAmount += 70 * players * durationHours; // flat rate per player for multiplayer
+                        totalAmount += 120 * players * durationHours; // flat rate per player for multiplayer
                     }
                 }
             }
@@ -181,7 +181,7 @@ const extendBill = async (req, res) => {
             }
 
             unit.duration += extendTime;
-            extendCost = extendTime === 15 ? 25 : 40;
+            extendCost = extendTime === 15 ? 15 : 25;
 
         } else {
             // type === 'ps'
@@ -213,9 +213,21 @@ const extendBill = async (req, res) => {
             // 💰 New PS pricing logic
             const players = unit.players || 1; // default to 1 if missing
             if (extendTime === 15) {
-                extendCost = players === 1 ? 25 : 15;
-            } else {
-                extendCost = players === 1 ? 40 : 30;
+                if (players === 1) {
+                    extendCost = 25;
+                } else {
+                    extendCost = 15;
+                }
+            } else if (extendTime === 30) {
+                if (players === 1) {
+                    extendCost = 50;
+                } else if (players === 2) {
+                    extendCost = 55;
+                } else if (players === 3) {
+                    extendCost = 50;
+                } else if (players === 4) {
+                    extendCost = 45;
+                }
             }
         }
 
@@ -482,7 +494,7 @@ const editBill = async (req, res) => {
                     if (players === 1) {
                         totalAmount += 120 * durationHours; // flat rate for single player
                     } else {
-                        totalAmount += 70 * durationHours * players; // flat rate per player for multiplayer
+                        totalAmount += 120 * durationHours * players; // flat rate per player for multiplayer
                     }
                 }
             }

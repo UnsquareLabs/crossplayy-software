@@ -1117,7 +1117,12 @@ async function confirmPayment() {
         const customerPayload = {
             name: bill.userName,
             contactNo: bill.contactNo,
-            loyaltyPoints: Math.floor(bill.gamingTotal / 100) * 5
+            loyaltyPoints:
+                bill.gamingTotal >= 360 ? 30 :
+                    bill.gamingTotal >= 180 ? 15 :
+                        bill.gamingTotal >= 150 ? 10 :
+                            bill.gamingTotal >= 100 ? 5 :
+                                0
         };
 
         const customerRes = await fetch('/api/customer/createOrAdd', {
