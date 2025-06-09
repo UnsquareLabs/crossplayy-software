@@ -781,6 +781,13 @@ function cancelSelection() {
 }
 
 async function bookSelectedPSs() {
+        const bookBtn = document.querySelector('.book-btn');
+    if (bookBtn) {
+        bookBtn.disabled = true;
+        setTimeout(() => {
+            bookBtn.disabled = false;
+        }, 7000);
+    }
     const hours = Number.parseFloat(document.getElementById("hoursSelect").value)
     const userName = document.getElementById("userName").value
     const contactNumber = document.getElementById("contactNumber").value

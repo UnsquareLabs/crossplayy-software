@@ -3,7 +3,7 @@ const Customer = require('../models/customer.models');
 // Create or update loyalty
 const createCustomerOrAdd = async (req, res) => {
     try {
-        const { name, contactNo, loyaltyPoints = 0 } = req.body;
+        const { name, contactNo, loyaltyPoints } = req.body;
 
         if (!name || !contactNo) {
             return res.status(400).json({ message: 'Name and contactNo are required' });
