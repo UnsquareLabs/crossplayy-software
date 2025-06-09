@@ -1176,7 +1176,8 @@ async function confirmPayment() {
         if (!oldBillRes.ok) throw new Error('Failed to fetch bill before payment');
 
         const oldBill = await oldBillRes.json();
-        const oldGamingTotal = oldBill.gamingTotal || 0;
+        const paidAmt = oldBill.paidAmt || 0;
+        const oldGamingTotal = paidAmt !== 0 ? (oldBill.gamingTotal || 0) : 0;
 
         const response = await fetch(`/api/bills/${billId}/pay`, {
             method: "PUT",
