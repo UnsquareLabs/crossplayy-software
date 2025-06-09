@@ -1021,6 +1021,25 @@ async function showPaymentModal(billId) {
             })
             .join("")
 
+        // Fetch Loyalty Points
+        fetch(`/api/customer/loyalty/${contactNo}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.loyaltyPoints !== undefined) {
+                    const loyaltyDisplay = document.getElementById('loyaltyPointsDisplay');
+                    loyaltyDisplay.innerHTML = `Available Loyalty Points: ₹${data.loyaltyPoints}`;
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching loyalty points:', err);
+            });
+
         let snacksSection = ""
         if (bill.snacks && bill.snacks.length > 0) {
             const snacksList = bill.snacks
@@ -1062,6 +1081,14 @@ async function showPaymentModal(billId) {
                 <div id="walletCreditDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
             </div>
 
+            <div id="loyaltySection" style="margin: 15px 0;">
+            <label>
+            <input type="checkbox" id="useLoyaltyCheckbox" />
+            <strong>Use Loyalty Points</strong>
+            </label>
+            <div id="loyaltyPointsDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
+            </div>
+            
             <div style="margin-top: 15px;">
                 <label><strong>Discount (₹):</strong></label><br/>
                 <input type="number" id="discountInput" min="0" value="0" style="padding: 5px; width: 100%; margin-bottom: 15px;" />
@@ -1112,26 +1139,47 @@ async function confirmPayment() {
     const upi = Number.parseInt(document.getElementById("upiInput").value, 10) || 0
     const discount = Number.parseInt(document.getElementById("discountInput").value, 10) || 0
     const useWallet = document.getElementById("useWalletCheckbox").checked
-    let wallet = 0
+    const useLoyalty = document.getElementById('useLoyaltyCheckbox').checked;
+    let wallet = -1;  // Default to -1 if not used
+    let loyalty = -1;
 
     if (useWallet) {
-        const walletText = document.getElementById("walletCreditDisplay").innerText
-        const match = walletText.match(/₹(\d+)/)
+        const walletText = document.getElementById('walletCreditDisplay').innerText;
+        const match = walletText.match(/₹(\d+)/);
         if (match && match[1]) {
-            wallet = Number.parseInt(match[1], 10)
+            wallet = parseInt(match[1], 10);
         }
-    } else {
-        wallet = -1
+    }
+
+    if (useLoyalty) {
+        const loyaltyText = document.getElementById('loyaltyPointsDisplay').innerText;
+        const match = loyaltyText.match(/₹(\d+)/);
+        if (match && match[1]) {
+            loyalty = parseInt(match[1], 10);
+        }
     }
 
     try {
+        const oldBillRes = await fetch(`/api/bills/${billId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!oldBillRes.ok) throw new Error('Failed to fetch bill before payment');
+
+        const oldBill = await oldBillRes.json();
+        const oldGamingTotal = oldBill.gamingTotal || 0;
+
         const response = await fetch(`/api/bills/${billId}/pay`, {
             method: "PUT",
             headers: {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ cash, upi, discount, wallet }),
+            body: JSON.stringify({ cash, upi, discount, wallet, loyalty }),
         })
 
         if (!response.ok) {
@@ -1140,35 +1188,50 @@ async function confirmPayment() {
             return
         }
 
-        const billRes = await fetch(`/api/bills/${billId}`, {
-            method: "GET",
+        const newBillRes = await fetch(`/api/bills/${billId}`, {
+            method: 'GET',
             headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-        })
-        const bill = await billRes.json()
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
-        if (!billRes.ok) {
-            throw new Error("Failed to fetch updated bill details")
-        }
+        if (!newBillRes.ok) throw new Error('Failed to fetch updated bill');
+
+        const newBill = await newBillRes.json();
+        const newGamingTotal = newBill.gamingTotal || 0;
+
+        // 4. Loyalty Points Calculation
+        const calculateLoyaltyPoints = (amount) => {
+            if (amount >= 360) return 30;
+            if (amount >= 180) return 15;
+            if (amount >= 150) return 10;
+            if (amount >= 100) return 5;
+            return 0;
+        };
+
+        const prevPoints = calculateLoyaltyPoints(oldGamingTotal);
+        const newPoints = calculateLoyaltyPoints(newGamingTotal);
+        console.log(prevPoints);
+        console.log(newPoints)
+        const netLoyaltyPoints = newPoints - prevPoints;
 
         const customerPayload = {
-            name: bill.userName,
-            contactNo: bill.contactNo,
-            loyaltyPoints: Math.floor(bill.gamingTotal / 100) * 5,
-        }
+            name: newBill.userName,
+            contactNo: newBill.contactNo,
+            loyaltyPoints: netLoyaltyPoints
+        };
 
-        const customerRes = await fetch("/api/customer/createOrAdd", {
-            method: "POST",
+        const customerRes = await fetch('/api/customer/createOrAdd', {
+            method: 'POST',
             headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(customerPayload),
-        })
+            body: JSON.stringify(customerPayload)
+        });
 
-        const customerResult = await customerRes.json()
+        const customerResult = await customerRes.json();
 
         if (!customerRes.ok) {
             console.warn("Customer save failed:", customerResult.message)

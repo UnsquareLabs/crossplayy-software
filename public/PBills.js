@@ -175,6 +175,7 @@ function renderBills(bills) {
             <td>₹${bill.cash || 0}</td>
             <td>₹${bill.upi || 0}</td>
             <td> ₹${bill.wallet || 0}</td>
+            <td> ₹${bill.loyaltyPoints || 0}</td>
             <td>₹${bill.discount || 0}</td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
             <td>${bill.billedBy}</td>
@@ -210,6 +211,7 @@ async function editBill(billId) {
         document.getElementById('editCash').value = bill.cash || 0;
         document.getElementById('editUpi').value = bill.upi || 0;
         document.getElementById('editWallet').value = bill.wallet || 0;
+        document.getElementById('editLoyalty').value = bill.loyaltyPoints || 0;
         // Example inside your editBill after units are loaded
         toggleUnitGroups(bill.pcUnits, bill.psUnits);
 
@@ -412,6 +414,7 @@ async function submitBillEdit() {
     const upi = Number(document.getElementById('editUpi').value) || 0;
     const discount = Number(document.getElementById('editDiscount').value) || 0;
     const wallet = Number(document.getElementById('editWallet').value) || 0;
+    const loyaltyPoints = Number(document.getElementById('editLoyalty').value) || 0;
 
 
     const pcUnits = Array.from(document.querySelectorAll('#editPcUnitsContainer .pc-unit-row')).map(row => ({
@@ -428,7 +431,8 @@ async function submitBillEdit() {
         cash,
         upi,
         discount,
-        wallet
+        wallet,
+        loyaltyPoints
     };
 
     if (pcUnits.length > 0) {
