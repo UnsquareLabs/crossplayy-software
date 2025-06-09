@@ -307,6 +307,7 @@ function renderVersionsTable(versions, bill) {
                 changes.upi = version.UPI !== prevVersion.UPI
                 changes.discount = version.discount !== prevVersion.discount
                 changes.wallet = version.wallet !== prevVersion.wallet
+                changes.loyaltyPoints = version.loyaltyPoints !== prevVersion.loyaltyPoints
                 changes.units =
                     unitsChanged(prevVersion.pcUnits, version.pcUnits) || unitsChanged(prevVersion.psUnits, version.psUnits)
                 changes.amount = version.amount !== prevVersion.amount
@@ -326,6 +327,7 @@ function renderVersionsTable(versions, bill) {
                 <td class="${!isFirstVersion && changes.cash ? "changed-cell" : ""}">₹${version.cash || 0}</td>
                 <td class="${!isFirstVersion && changes.upi ? "changed-cell" : ""}">₹${version.UPI || 0}</td>
                 <td class="${!isFirstVersion && changes.wallet ? "changed-cell" : ""}">₹${version.wallet || 0}</td>
+                <td class="${!isFirstVersion && changes.loyaltyPoints ? "changed-cell" : ""}">₹${version.loyaltyPoints || 0}</td>
                 <td class="${!isFirstVersion && changes.discount ? "changed-cell" : ""}">₹${version.discount || 0}</td>
                 <td class="amount-cell ${!isFirstVersion && changes.amount ? "changed-cell" : ""}">₹${version.amount || 0}</td>
                 <td>${bill?.billedBy || '<span class="empty-cell">—</span>'}</td>
@@ -344,6 +346,7 @@ function renderVersionsTable(versions, bill) {
         currentChanges.upi = bill.upi !== lastVersion.UPI
         currentChanges.discount = bill.discount !== lastVersion.discount
         currentChanges.wallet = bill.wallet !== lastVersion.wallet
+        currentChanges.loyaltyPoints = bill.loyaltyPoints !== lastVersion.loyaltyPoints
         currentChanges.units =
             unitsChanged(lastVersion.pcUnits, bill.pcUnits) || unitsChanged(lastVersion.psUnits, bill.psUnits)
         currentChanges.amount = bill.amount !== lastVersion.amount
@@ -362,6 +365,7 @@ function renderVersionsTable(versions, bill) {
             <td class="${currentChanges.cash ? "changed-cell" : ""}">₹${bill.cash || 0}</td>
             <td class="${currentChanges.upi ? "changed-cell" : ""}">₹${bill.upi || 0}</td>
             <td class="${currentChanges.wallet ? "changed-cell" : ""}">₹${bill.wallet || 0}</td>
+            <td class="${currentChanges.loyaltyPoints ? "changed-cell" : ""}">₹${bill.loyaltyPoints || 0}</td>
             <td class="${currentChanges.discount ? "changed-cell" : ""}">₹${bill.discount || 0}</td>
             <td class="amount-cell ${currentChanges.amount ? "changed-cell" : ""}">₹${bill.amount || 0}</td>
             <td>${bill.billedBy}</td>
@@ -384,6 +388,7 @@ function renderVersionsTable(versions, bill) {
                         <th>Cash</th>
                         <th>UPI</th>
                         <th>Wallet</th>
+                        <th>Loyalty Points</th>
                         <th>Discount</th>
                         <th>Amount</th>
                         <th>Billed by</th>

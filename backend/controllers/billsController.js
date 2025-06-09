@@ -95,7 +95,7 @@ const createBill = async (req, res) => {
                         ratePerPlayerHour = 120;
                         totalAmount += durationHours * players * ratePerPlayerHour; // flat rate for single player
                     } else {
-                        totalAmount += 70 * players * durationHours; // flat rate per player for multiplayer
+                        totalAmount += 120 * players * durationHours; // flat rate per player for multiplayer
                     }
                 }
             }
@@ -181,7 +181,7 @@ const extendBill = async (req, res) => {
             }
 
             unit.duration += extendTime;
-            extendCost = extendTime === 15 ? 25 : 40;
+            extendCost = extendTime === 15 ? 15 : 25;
 
         } else {
             // type === 'ps'
@@ -213,9 +213,21 @@ const extendBill = async (req, res) => {
             // 💰 New PS pricing logic
             const players = unit.players || 1; // default to 1 if missing
             if (extendTime === 15) {
-                extendCost = players === 1 ? 25 : 15;
-            } else {
-                extendCost = players === 1 ? 40 : 30;
+                if (players === 1) {
+                    extendCost = 25;
+                } else {
+                    extendCost = 15;
+                }
+            } else if (extendTime === 30) {
+                if (players === 1) {
+                    extendCost = 50;
+                } else if (players === 2) {
+                    extendCost = 55;
+                } else if (players === 3) {
+                    extendCost = 50;
+                } else if (players === 4) {
+                    extendCost = 45;
+                }
             }
         }
 
@@ -260,92 +272,102 @@ const getBillById = async (req, res) => {
 const markBillAsPaid = async (req, res) => {
     try {
         const { id } = req.params;
-        let { cash = 0, upi = 0, discount = 0, wallet = 0 } = req.body;
+        let { cash = 0, upi = 0, discount = 0, wallet = 0, loyalty = 0 } = req.body;
 
-        console.log(`🧾 Marking bill as paid: ID=${id}, Cash=${cash}, UPI=${upi}, Discount=${discount}, Wallet=${wallet}`);
+        console.log(`🧾 Marking bill as paid: ID=${id}, Cash=${cash}, UPI=${upi}, Discount=${discount}, Wallet=${wallet}, Loyalty=${loyalty}`);
 
-        // Retrieve the bill
         const bill = await Bill.findById(id);
         if (!bill) {
             console.log('❌ Bill not found');
-            return res.status(200).json({ message: 'Bill not found' });
+            return res.status(404).json({ message: 'Bill not found' });
         }
 
-        if (wallet == -1) {
-            console.log('⚠️ Wallet value is -1, resetting to 0');
-            wallet = 0;
-        }
+        if (wallet == -1) wallet = 0;
+        if (loyalty == -1) loyalty = 0;
 
         const totalDue = bill.amount;
         const effectivePaid = totalDue - discount - bill.paidAmt;
 
         console.log(`💰 Total due: ₹${totalDue}, Effective to be paid after discount: ₹${effectivePaid}`);
 
-        // Try to fetch customer
         const foundCustomer = await Customer.findOne({ contactNo: bill.contactNo });
 
-
+        // Case 1: Wallet can fully pay
         if (wallet >= effectivePaid) {
-
-            // // Zero out other payment methods
-            // cash = 0;
-            // upi = 0;
-
             if (foundCustomer) {
                 foundCustomer.walletCredit -= effectivePaid;
                 await foundCustomer.save();
             }
 
-            // Mark bill as paid
             bill.status = true;
-            // bill.cash = 0;
-            // bill.upi = 0;
-            bill.discount += discount;
             bill.wallet += effectivePaid;
+            bill.discount += discount;
             bill.paidAmt += effectivePaid;
             bill.remainingAmt = 0;
             bill.snacksTotal = 0;
-
-            // Mark all snacks as paid
             bill.snacks = bill.snacks.map(snack => ({
-                ...snack.toObject(), // convert Mongoose subdoc to plain object
+                ...snack.toObject(),
                 paidFor: true
             }));
 
             const updatedBill = await bill.save();
-            return res.status(200).json({ message: 'Bill marked as paid using wallet balance', bill: updatedBill });
-        } else {
-            const totalPaid = cash + upi + wallet;
+            return res.status(200).json({ message: 'Bill marked as paid using wallet', bill: updatedBill });
+        }
 
-            if (totalPaid !== effectivePaid) {
-                return res.status(400).json({
-                    message: `Total payment (cash + upi + wallet = ₹${totalPaid}) must equal total due minus discount (₹${effectivePaid}).`
-                });
-            }
-
+        // Case 2: Loyalty can fully pay
+        if (loyalty >= effectivePaid) {
             if (foundCustomer) {
-                foundCustomer.walletCredit -= wallet;
+                foundCustomer.loyaltyPoints -= effectivePaid;
                 await foundCustomer.save();
             }
 
             bill.status = true;
-            bill.cash += cash;
-            bill.upi += upi;
+            bill.loyaltyPoints = (bill.loyaltyPoints || 0) + effectivePaid;
             bill.discount += discount;
-            bill.wallet += wallet;
             bill.paidAmt += effectivePaid;
             bill.remainingAmt = 0;
             bill.snacksTotal = 0;
-
-            // Mark all snacks as paid
             bill.snacks = bill.snacks.map(snack => ({
-                ...snack.toObject(), // convert Mongoose subdoc to plain object
+                ...snack.toObject(),
                 paidFor: true
             }));
 
             const updatedBill = await bill.save();
-            return res.status(200).json({ message: 'Bill marked as paid', bill: updatedBill });
+            return res.status(200).json({ message: 'Bill marked as paid using loyalty points', bill: updatedBill });
         }
+
+        // Case 3: Combination of wallet + loyalty + upi + cash
+        const totalPaid = cash + upi + wallet + loyalty;
+
+        if (totalPaid !== effectivePaid) {
+            return res.status(400).json({
+                message: `Total payment (cash + upi + wallet + loyalty = ₹${totalPaid}) must equal total due minus discount (₹${effectivePaid}).`
+            });
+        }
+
+        if (foundCustomer) {
+            foundCustomer.walletCredit -= wallet;
+            foundCustomer.loyaltyPoints -= loyalty;
+            await foundCustomer.save();
+        }
+
+        bill.status = true;
+        bill.cash += cash;
+        bill.upi += upi;
+        bill.wallet += wallet;
+        bill.loyaltyPoints += loyalty;
+        bill.discount += discount;
+        bill.paidAmt += effectivePaid;
+        bill.remainingAmt = 0;
+        bill.snacksTotal = 0;
+        bill.snacks = bill.snacks.map(snack => ({
+            ...snack.toObject(),
+            paidFor: true
+        }));
+
+        const updatedBill = await bill.save();
+        return res.status(200).json({ message: 'Bill marked as paid using mixed methods', bill: updatedBill });
+
     } catch (err) {
         console.error('❗ Error in markBillAsPaid:', err);
         res.status(500).json({ message: 'Failed to update bill status' });
@@ -374,7 +396,7 @@ const deleteBill = async (req, res) => {
 const editBill = async (req, res) => {
     try {
         const { id } = req.params;
-        const { cash = 0, upi = 0, wallet = 0, discount = 0, pcUnits = [], psUnits = [] } = req.body;
+        const { cash = 0, upi = 0, wallet = 0, loyaltyPoints = 0, discount = 0, pcUnits = [], psUnits = [] } = req.body;
 
         // Fetch existing bill
         const bill = await Bill.findById(id);
@@ -382,12 +404,11 @@ const editBill = async (req, res) => {
             return res.status(404).json({ message: 'Bill not found' });
         }
 
-        // Normalize pcUnits by keeping only relevant fields
+        // Normalize pcUnits
         const normalizePCUnits = (units) =>
             units.map(({ pcId, duration }) => ({ pcId, duration }))
                 .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
-        // Normalize psUnits including noOfPlayers
         const normalizePSUnits = (units) =>
             units.map(({ psId, duration, players }) => ({ psId, duration, players }))
                 .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -398,56 +419,35 @@ const editBill = async (req, res) => {
         const normalizedExistingPS = normalizePSUnits(bill.psUnits);
         const normalizedIncomingPS = normalizePSUnits(psUnits);
 
-        // console.log('--- Field Comparison ---');
-        // console.log(`cash: existing=${bill.cash}, incoming=${cash}`);
-        // console.log(`upi: existing=${bill.upi}, incoming=${upi}`);
-        // console.log(`wallet: existing=${bill.wallet}, incoming=${wallet}`);
-        // console.log(`discount: existing=${bill.discount}, incoming=${discount}`);
-        // console.log(`pcUnits: existing=${JSON.stringify(normalizedExistingPC)}, incoming=${JSON.stringify(normalizedIncomingPC)}`);
-        // console.log(`psUnits: existing=${JSON.stringify(normalizedExistingPS)}, incoming=${JSON.stringify(normalizedIncomingPS)}`);
-
         const isSame =
             bill.cash === cash &&
             bill.upi === upi &&
             bill.wallet === wallet &&
+            bill.loyaltyPoints === loyaltyPoints &&
             bill.discount === discount &&
             JSON.stringify(normalizedExistingPC) === JSON.stringify(normalizedIncomingPC) &&
             JSON.stringify(normalizedExistingPS) === JSON.stringify(normalizedIncomingPS);
 
         if (isSame) {
-            // Remove the most recent edit log entry for this billId
-            // Attempt to delete the most recent edit log entry for this billId
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
-
             if (deletedLog) {
                 console.log(`Deleted edit log for billId: ${id}`);
             }
-            console.log('No changes detected. Aborting update.');
             return res.status(400).json({ message: 'No changes detected' });
         }
 
+        // Recalculate total
         const bookingTimeUTC = new Date(bill.bookingTime);
-
-        // Convert to IST using toLocaleString
-        const bookingTimeISTString = bookingTimeUTC.toLocaleString("en-US", {
-            timeZone: "Asia/Kolkata"
-        });
-        const bookingTimeIST = new Date(bookingTimeISTString);
-
-        // console.log("bookingTimeIST:", bookingTimeIST);
-
+        const bookingTimeIST = new Date(bookingTimeUTC.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
         const hourIST = bookingTimeIST.getHours();
-        // console.log("hourIST:", hourIST);
-
 
         let totalAmount = 0;
         const type = bill.type;
 
         if (type === 'pc') {
-            // PC Pricing: before 10 PM ₹50/hr, else ₹60/hr
             const ratePerHour = hourIST < 22 ? 50 : 60;
             for (const unit of pcUnits) {
-                const durationHours = unit.duration / 60; // minutes to hours
+                const durationHours = unit.duration / 60;
                 totalAmount += durationHours * ratePerHour;
             }
         } else if (type === 'ps') {
@@ -461,28 +461,18 @@ const editBill = async (req, res) => {
                 if (hourIST < 22) {
                     let ratePerPlayerHour = 0;
                     switch (players) {
-                        case 4:
-                            ratePerPlayerHour = 45;
-                            break;
-                        case 3:
-                            ratePerPlayerHour = 50;
-                            break;
-                        case 2:
-                            ratePerPlayerHour = 55;
-                            break;
-                        case 1:
-                            ratePerPlayerHour = 100;
-                            break;
-                        default:
-                            ratePerPlayerHour = 40;
+                        case 4: ratePerPlayerHour = 45; break;
+                        case 3: ratePerPlayerHour = 50; break;
+                        case 2: ratePerPlayerHour = 55; break;
+                        case 1: ratePerPlayerHour = 100; break;
+                        default: ratePerPlayerHour = 40;
                     }
                     totalAmount += durationHours * players * ratePerPlayerHour;
                 } else {
-                    // After 10 PM pricing
                     if (players === 1) {
-                        totalAmount += 120 * durationHours; // flat rate for single player
+                        totalAmount += 120 * durationHours;
                     } else {
-                        totalAmount += 70 * durationHours * players; // flat rate per player for multiplayer
+                        totalAmount += 120 * durationHours * players;
                     }
                 }
             }
@@ -490,8 +480,7 @@ const editBill = async (req, res) => {
             return res.status(400).json({ message: 'Invalid bill type.' });
         }
 
-
-        // Add snacks total from bill.snacks
+        // Add snack total
         let snackTotal = 0;
         if (Array.isArray(bill.snacks)) {
             for (const snack of bill.snacks) {
@@ -501,23 +490,18 @@ const editBill = async (req, res) => {
             }
         }
 
-
         totalAmount += snackTotal;
-
-        // console.log(totalAmount);
-        // Validate cash + upi - discount = totalAmount
-        const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(discount);
         totalAmount = Math.round(totalAmount);
-        if (totalPaid !== totalAmount) {
-            // Remove the most recent edit log entry for this billId
-            // Attempt to delete the most recent edit log entry for this billId
-            const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
 
+        const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(loyaltyPoints) + Number(discount);
+
+        if (totalPaid !== totalAmount) {
+            const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
             if (deletedLog) {
                 console.log(`Deleted edit log for billId: ${id}`);
             }
             return res.status(400).json({
-                message: `Invalid payment values: cash + upi - discount = ₹${totalPaid} but recalculated amount is ₹${totalAmount}. They must be equal.`
+                message: `Invalid payment values: cash + upi + wallet + loyalty + discount = ₹${totalPaid} but recalculated amount is ₹${totalAmount}. They must be equal.`
             });
         }
 
@@ -529,7 +513,7 @@ const editBill = async (req, res) => {
         const updatedBill = await Bill.findByIdAndUpdate(id, updatedData, { new: true });
 
         if (!updatedBill) {
-            return res.status(404).json({ message: 'Bill not found' });
+            return res.status(404).json({ message: 'Bill not found after update' });
         }
 
         res.status(200).json({ message: 'Bill updated successfully', bill: updatedBill });
@@ -538,6 +522,7 @@ const editBill = async (req, res) => {
         res.status(500).json({ message: 'Failed to update bill' });
     }
 };
+
 
 const addSnacksToBill = async (req, res) => {
     try {

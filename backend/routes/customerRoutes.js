@@ -9,5 +9,6 @@ router.get('/all', authMiddleware, customerController.getAllCustomers);
 router.put('/edit/:id', authMiddleware, customerController.updateCustomer);
 router.delete('/delete/:id', authMiddleware, customerController.deleteCustomer);
 router.get('/wallet/:contactNo', authMiddleware, customerController.getCustomerWalletByPhone);
+router.get('/loyalty/:contactNo', authMiddleware, customerController.getCustomerLoyaltyPointsByPhone);
 
 module.exports = router;

@@ -82,12 +82,16 @@ const billSchema = new mongoose.Schema({
     type: Number,
     default: 0 // discount amount in ₹
   },
+  loyaltyPoints: {
+    type: Number,
+    default: 0 // amount paid using loyalty points
+  },
   snacks: [
     {
       name: { type: String, required: true },
       quantity: { type: Number, required: true },
       price: { type: Number, required: true }, // unit price
-      paidFor: { type: Boolean, default: false } 
+      paidFor: { type: Boolean, default: false }
     }
   ],
   billedBy: {
