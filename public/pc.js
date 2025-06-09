@@ -746,6 +746,9 @@ function cancelSelection() {
 }
 
 async function bookSelectedPCs() {
+    const bookButton = document.getElementById('bookButton'); // 🔁 Make sure your button has this ID
+    bookButton.disabled = true; // Disable immediately
+
     const hours = parseFloat(document.getElementById('hoursSelect').value);
     const userName = document.getElementById('userName').value;
     const contactNumber = document.getElementById('contactNumber').value;
@@ -812,6 +815,10 @@ async function bookSelectedPCs() {
     } catch (error) {
         console.error('Booking error:', error);
         alert('Booking failed. Please try again.');
+    } finally {
+        setTimeout(() => {
+            bookButton.disabled = false; // Re-enable after 5 seconds
+        }, 5000);
     }
 }
 
