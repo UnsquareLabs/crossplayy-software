@@ -245,7 +245,10 @@ function displayPrebookings(prebookings) {
                         <div class="prebooking-label">Duration</div>
                         <div class="prebooking-value">${durationStr.trim()}</div>
                     </div>
-              
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Type</div>
+                        <div class="prebooking-value">${prebooking.type.toUpperCase()}</div>
+                    </div>
                     <div class="prebooking-detail">
                         <div class="prebooking-label">Units</div>
                         <div class="prebooking-value">
@@ -410,6 +413,100 @@ async function deletePrebooking(prebookingId) {
     console.error("Error deleting prebooking:", error)
     alert("Failed to delete prebooking. Please try again.")
   }
+}
+
+// Auto-convert due prebookings to bills
+async function convertDuePrebookings() {
+  try {
+    const response = await fetch("/api/prebook/convert-due", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.bills && result.bills.length > 0) {
+        console.log(`✅ Converted ${result.bills.length} due prebookings to bills`)
+
+        // Update UI components
+        await updateUnpaidBills()
+        await updatePrebookingCount()
+
+        // Optional: Show a subtle notification
+        showNotification(`${result.bills.length} prebooking(s) converted to bills`, "success")
+      }
+    } else {
+      console.warn("Failed to convert due prebookings:", await response.text())
+    }
+  } catch (error) {
+    console.error("Error in auto-convert prebookings:", error)
+  }
+}
+
+// Notification system for prebooking conversions
+function showNotification(message, type = "info") {
+  // Create notification element if it doesn't exist
+  let notificationContainer = document.getElementById("notificationContainer")
+  if (!notificationContainer) {
+    notificationContainer = document.createElement("div")
+    notificationContainer.id = "notificationContainer"
+    notificationContainer.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      pointer-events: none;
+    `
+    document.body.appendChild(notificationContainer)
+  }
+
+  const notification = document.createElement("div")
+  notification.style.cssText = `
+    background: ${type === "success" ? "rgba(40, 167, 69, 0.9)" : "rgba(0, 123, 255, 0.9)"};
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    pointer-events: auto;
+    cursor: pointer;
+  `
+
+  notification.textContent = `📅 ${message}`
+  notificationContainer.appendChild(notification)
+
+  // Animate in
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)"
+  }, 100)
+
+  // Auto remove after 4 seconds
+  setTimeout(() => {
+    notification.style.transform = "translateX(100%)"
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification)
+      }
+    }, 300)
+  }, 4000)
+
+  // Click to dismiss
+  notification.addEventListener("click", () => {
+    notification.style.transform = "translateX(100%)"
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification)
+      }
+    }, 300)
+  })
 }
 
 // Prebooking Mode Toggle
@@ -1117,7 +1214,7 @@ async function bookSelectedPCs() {
           contactNo: contactNumber,
           scheduledDate: scheduledDateTime,
           duration: duration,
-
+          billedBy: "Admin", // You can modify this based on your auth system
         }),
       })
 
@@ -1151,6 +1248,26 @@ async function bookSelectedPCs() {
     }))
 
     try {
+      // ✅ Step 1: Check availability before booking
+      const availabilityRes = await fetch("/api/prebook/check-availability", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pcUnits: bookings.map(b => b.pcId),
+          duration,
+        }),
+      });
+
+      const availabilityResult = await availabilityRes.json();
+
+      if (!availabilityRes.ok) {
+        alert(`Cannot book: ${availabilityResult.message}`);
+        return;
+      }
+      
       const response = await fetch("/api/pc/book", {
         method: "POST",
         headers: {
@@ -1680,3 +1797,11 @@ document.addEventListener("click", (e) => {
     closeEditPrebookingModal()
   }
 })
+
+// Start auto-conversion of due prebookings (runs every 60 seconds)
+setInterval(convertDuePrebookings, 30000) // 60 seconds
+
+// Run once immediately on page load
+convertDuePrebookings()
+
+console.log("🔄 Auto-conversion of due prebookings started (60-second interval)")
