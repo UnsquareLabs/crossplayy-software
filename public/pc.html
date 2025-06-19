@@ -52,6 +52,11 @@
                 <img src="assets/image.png" alt="Crossplay Logo" class="logo-image">
             </div>
             <div class="logo-text">CROSSPLAY PC LOUNGE</div>
+            <!-- Subtle Prebooking Button in Header -->
+            <button class="prebooking-header-btn" onclick="openPrebookingModal()" title="Manage Prebookings">
+                <span class="prebooking-icon">📅</span>
+                <span class="prebooking-count" id="prebookingCount">0</span>
+            </button>
         </div>
     </header>
 
@@ -72,6 +77,11 @@
                     <div class="status-card occupied">
                         <div class="status-number" id="occupiedCount">0</div>
                         <div class="status-label">Occupied</div>
+                    </div>
+                    <!-- Subtle Prebooking Status Card -->
+                    <div class="status-card prebooking" onclick="openPrebookingModal()" style="cursor: pointer;">
+                        <div class="status-number" id="prebookingStatusCount">0</div>
+                        <div class="status-label">Prebookings</div>
                     </div>
                 </div>
 
@@ -94,6 +104,60 @@
                     <div id="unpaidBills">
                         <!-- Bills will be populated by JavaScript -->
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prebooking Management Modal -->
+    <div class="prebooking-modal" id="prebookingModal">
+        <div class="prebooking-content">
+            <div class="prebooking-header">
+                <h3>📅 Manage Prebookings</h3>
+                <button class="close-prebooking-btn" onclick="closePrebookingModal()">✕</button>
+            </div>
+            <div class="prebooking-list" id="prebookingList">
+                <!-- Prebookings will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Prebooking Modal -->
+    <div class="edit-prebooking-modal" id="editPrebookingModal">
+        <div class="edit-prebooking-content">
+            <div class="edit-prebooking-header">
+                <h3>✏️ Edit Prebooking</h3>
+                <button class="close-edit-prebooking-btn" onclick="closeEditPrebookingModal()">✕</button>
+            </div>
+            <div class="edit-prebooking-form">
+                <div class="form-group">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" class="form-input" id="editName" placeholder="Enter customer name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Contact Number</label>
+                    <input type="tel" class="form-input" id="editContactNo" placeholder="Enter contact number">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Scheduled Date & Time</label>
+                    <input type="datetime-local" class="form-input" id="editScheduledDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration (minutes)</label>
+                    <input type="number" class="form-input" id="editDuration" min="30" step="30"
+                        placeholder="Duration in minutes">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">PC Units</label>
+                    <input type="number" class="form-input" id="editPcUnits" min="0" placeholder="Number of PCs">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">PS Units</label>
+                    <input type="number" class="form-input" id="editPsUnits" min="0" placeholder="Number of PS units">
+                </div>
+                <div class="edit-prebooking-buttons">
+                    <button class="save-prebooking-btn" onclick="saveEditedPrebooking()">Save Changes</button>
+                    <button class="cancel-edit-btn" onclick="closeEditPrebookingModal()">Cancel</button>
                 </div>
             </div>
         </div>
@@ -185,8 +249,20 @@
                     <label class="form-label">Contact Number</label>
                     <input type="tel" class="form-input" id="contactNumber" placeholder="Enter your contact number">
                 </div>
-                <button class="book-btn" id="bookButton" onclick="bookSelectedPCs()">Book PCs</button>
-                <button class="cancel-btn" onclick="cancelSelection()">Cancel</button>
+
+                <!-- Prebooking Section -->
+                <div class="prebooking-section" id="prebookingSection" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Scheduled Date & Time</label>
+                        <input type="datetime-local" class="form-input" id="scheduledDateTime">
+                    </div>
+                </div>
+
+                <div class="booking-buttons">
+                    <button class="book-btn" id="bookButton" onclick="bookSelectedPCs()">Book Now</button>
+                    <button class="prebook-btn" id="prebookButton" onclick="togglePrebookMode()">📅 Prebook</button>
+                    <button class="cancel-btn" onclick="cancelSelection()">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
@@ -204,6 +280,7 @@
             </div>
         </div>
     </div>
+
     <footer class="footer">
         <div class="footer-content">
             <div class="copyright">© 2025 Crossplayy Gaming Café. All rights reserved.</div>
