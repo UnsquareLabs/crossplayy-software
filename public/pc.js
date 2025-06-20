@@ -956,8 +956,49 @@ async function fetchPCStatus(pcId) {
         }
       }
     }
+    // ✅ NEW: Fetch next booking
+    const prebookRes = await fetch("/api/prebook/", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const prebookings = await prebookRes.json();
+    if (!Array.isArray(prebookings)) {
+      console.warn("⚠️ prebookings is not an array:", prebookings);
+      return { status, timeRemaining, nextBookingTime: null };
+    }
 
-    return { status, timeRemaining }
+    const now = new Date();
+    console.log(`🔍 Checking future bookings for PC${pcId}`);
+
+    const upcoming = prebookings
+      .filter(pb => {
+        const match =
+          pb.type === "pc" &&
+          Array.isArray(pb.pcUnits) &&
+          pb.pcUnits.includes(String(pcId)) &&
+          new Date(pb.scheduledDate) > now &&
+          !pb.isConvertedToBill;
+
+        if (match) {
+          console.log(`✅ Matched booking for PC${pcId}:`, pb);
+        }
+        return match;
+      })
+      .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+    if (upcoming.length > 0) {
+      console.log(`📅 Next booking for PC${pcId}:`, upcoming[0].scheduledDate);
+    } else {
+      console.log(`🆓 No upcoming booking found for PC${pcId}`);
+    }
+
+    const nextBookingTime = upcoming.length > 0 ? upcoming[0].scheduledDate : null;
+
+    return { status, timeRemaining, nextBookingTime };
+
   } catch (err) {
     console.error(`Error fetching time for PC ${pcId}`, err)
     return { status: "available", timeRemaining: "Ready to Play" }
@@ -982,6 +1023,7 @@ async function initializePCCards() {
             <div class="pc-specs">
                 RTX 4080 • i7-13700K • 32GB RAM • 240Hz Monitor
             </div>
+            <div class="next-booking">Next booking: --</div>
             <div class="pc-time">Checking...</div>
             <div class="extend-buttons"></div>
             <div class="unfreeze-button"></div>
@@ -1026,8 +1068,9 @@ async function updatePCTimes() {
     const timeDiv = card.querySelector(".pc-time")
     const extendDiv = card.querySelector(".extend-buttons")
     const unfreeze = card.querySelector(".unfreeze-button")
+    const nextBookingDiv = card.querySelector(".next-booking")
 
-    const { status, timeRemaining } = await fetchPCStatus(pc.id)
+    const { status, timeRemaining, nextBookingTime } = await fetchPCStatus(pc.id)
 
     pc.status = status
     card.className = `pc-card ${status}`
@@ -1036,6 +1079,12 @@ async function updatePCTimes() {
     statusDiv.className = `pc-status ${status}`
     timeDiv.textContent = timeRemaining
     timeDiv.className = `pc-time ${status}`
+
+    if (nextBookingDiv) {
+      nextBookingDiv.textContent = nextBookingTime
+        ? `Next booking: ${formatTime(nextBookingTime)}`
+        : "Next booking: --"
+    }
 
     if (status === "occupied" || status === "ending-soon") {
       extendDiv.innerHTML = `
@@ -1053,6 +1102,19 @@ async function updatePCTimes() {
 
   updateStatusCounts()
 }
+
+function formatTime(isoString) {
+  const date = new Date(isoString);
+  return date.toLocaleString(undefined, {
+    weekday: 'short',      // e.g., "Fri"
+    month: 'short',        // e.g., "Jun"
+    day: 'numeric',        // e.g., "21"
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 
 function confirmExtend(pcId, minutes) {
   const price = minutes === 15 ? 20 : 25
@@ -1267,7 +1329,7 @@ async function bookSelectedPCs() {
         alert(`Cannot book: ${availabilityResult.message}`);
         return;
       }
-      
+
       const response = await fetch("/api/pc/book", {
         method: "POST",
         headers: {

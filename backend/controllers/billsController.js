@@ -396,7 +396,10 @@ const deleteBill = async (req, res) => {
 const editBill = async (req, res) => {
     try {
         const { id } = req.params;
-        const { cash = 0, upi = 0, wallet = 0, loyaltyPoints = 0, discount = 0, pcUnits = [], psUnits = [] } = req.body;
+        const {
+            cash = 0, upi = 0, wallet = 0, loyaltyPoints = 0,
+            discount = 0, pcUnits = [], psUnits = []
+        } = req.body;
 
         // Fetch existing bill
         const bill = await Bill.findById(id);
@@ -404,7 +407,40 @@ const editBill = async (req, res) => {
             return res.status(404).json({ message: 'Bill not found' });
         }
 
-        // Normalize pcUnits
+        // ✅ Now resolve customer
+        const contactNo = bill.contactNo;
+        const customer = await Customer.findOne({ contactNo });
+
+
+        // Step 1: Restore old balance
+        const prevWallet = bill.walletCredit || 0;
+        const prevLoyalty = bill.loyaltyPoints || 0;
+
+        customer.walletCredit += prevWallet;
+        customer.loyaltyPoints += prevLoyalty;
+        await customer.save();
+
+        // Step 2: Check if new values are allowed
+        if (wallet > customer.walletCredit) {
+            // Rollback customer balance
+            customer.walletCredit -= prevWallet;
+            customer.loyaltyPoints -= prevLoyalty;
+            await customer.save();
+            return res.status(400).json({
+                message: `Insufficient wallet balance. Available: ₹${customer.walletCredit}, Required more: ₹${wallet}`
+            });
+        }
+
+        if (loyaltyPoints > customer.loyaltyPoints) {
+            customer.walletCredit -= prevWallet;
+            customer.loyaltyPoints -= prevLoyalty;
+            await customer.save();
+            return res.status(400).json({
+                message: `Insufficient loyalty points. Available: ${customer.loyaltyPoints}, Required: ${loyaltyPoints}`
+            });
+        }
+
+        // Normalize units
         const normalizePCUnits = (units) =>
             units.map(({ pcId, duration }) => ({ pcId, duration }))
                 .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -415,7 +451,6 @@ const editBill = async (req, res) => {
 
         const normalizedExistingPC = normalizePCUnits(bill.pcUnits);
         const normalizedIncomingPC = normalizePCUnits(pcUnits);
-
         const normalizedExistingPS = normalizePSUnits(bill.psUnits);
         const normalizedIncomingPS = normalizePSUnits(psUnits);
 
@@ -430,9 +465,7 @@ const editBill = async (req, res) => {
 
         if (isSame) {
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
-            if (deletedLog) {
-                console.log(`Deleted edit log for billId: ${id}`);
-            }
+            if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
             return res.status(400).json({ message: 'No changes detected' });
         }
 
@@ -454,10 +487,9 @@ const editBill = async (req, res) => {
             for (const unit of psUnits) {
                 const { duration, players } = unit;
                 if (!players || typeof players !== 'number' || players < 1) {
-                    return res.status(400).json({ message: 'Each psUnit must have a valid number of players (>=1).' });
+                    return res.status(400).json({ message: 'Each psUnit must have valid players (>=1).' });
                 }
                 const durationHours = duration / 60;
-
                 if (hourIST < 22) {
                     let ratePerPlayerHour = 0;
                     switch (players) {
@@ -469,18 +501,14 @@ const editBill = async (req, res) => {
                     }
                     totalAmount += durationHours * players * ratePerPlayerHour;
                 } else {
-                    if (players === 1) {
-                        totalAmount += 120 * durationHours;
-                    } else {
-                        totalAmount += 120 * durationHours * players;
-                    }
+                    totalAmount += durationHours * players * 120;
                 }
             }
         } else {
             return res.status(400).json({ message: 'Invalid bill type.' });
         }
 
-        // Add snack total
+        // Add snacks total
         let snackTotal = 0;
         if (Array.isArray(bill.snacks)) {
             for (const snack of bill.snacks) {
@@ -496,14 +524,23 @@ const editBill = async (req, res) => {
         const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(loyaltyPoints) + Number(discount);
 
         if (totalPaid !== totalAmount) {
+            // Rollback customer balance
+            customer.walletCredit -= prevWallet;
+            customer.loyaltyPoints -= prevLoyalty;
+            await customer.save();
+
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
-            if (deletedLog) {
-                console.log(`Deleted edit log for billId: ${id}`);
-            }
+            if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
+
             return res.status(400).json({
-                message: `Invalid payment values: cash + upi + wallet + loyalty + discount = ₹${totalPaid} but recalculated amount is ₹${totalAmount}. They must be equal.`
+                message: `Invalid payment: total given ₹${totalPaid}, but required ₹${totalAmount}`
             });
         }
+
+        // All good, update bill and customer balance
+        customer.walletCredit -= wallet;
+        customer.loyaltyPoints -= loyaltyPoints;
+        await customer.save();
 
         const updatedData = {
             ...req.body,
@@ -511,7 +548,6 @@ const editBill = async (req, res) => {
         };
 
         const updatedBill = await Bill.findByIdAndUpdate(id, updatedData, { new: true });
-
         if (!updatedBill) {
             return res.status(404).json({ message: 'Bill not found after update' });
         }
@@ -522,6 +558,7 @@ const editBill = async (req, res) => {
         res.status(500).json({ message: 'Failed to update bill' });
     }
 };
+
 
 
 const addSnacksToBill = async (req, res) => {

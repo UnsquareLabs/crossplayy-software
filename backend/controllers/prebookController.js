@@ -372,6 +372,56 @@ const createPrebooking = async (req, res) => {
             if (!pcUnits || !Array.isArray(pcUnits) || pcUnits.length === 0) {
                 return res.status(400).json({ message: 'pcUnits must be a non-empty array for type "pc"' });
             }
+            // 🛑 Check availability before proceeding
+            const scheduledStart = new Date(scheduledDate);
+            const scheduledEnd = new Date(scheduledStart.getTime() + duration * 60000);
+
+            const todayBookings = await Prebook.find({
+                type: 'pc',
+                scheduledDate: {
+                    $lte: scheduledEnd
+                },
+                isConvertedToBill: false,
+            }).lean();
+
+            const conflicts = [];
+            const requestedUnits = pcUnits.map(unit => String(unit).toUpperCase());
+
+
+            for (const booking of todayBookings) {
+                const bookingStart = new Date(booking.scheduledDate);
+                const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+
+                for (const unit of booking.pcUnits) {
+                    const normalizedUnit = String(unit).toUpperCase();
+                    if (requestedUnits.includes(normalizedUnit)) {
+                        const overlap =
+                            (scheduledStart >= bookingStart && scheduledStart < bookingEnd) ||
+                            (scheduledEnd > bookingStart && scheduledEnd <= bookingEnd) ||
+                            (scheduledStart <= bookingStart && scheduledEnd >= bookingEnd);
+
+                        if (overlap) {
+                            conflicts.push({
+                                unit: normalizedUnit,
+                                bookedFrom: bookingStart,
+                                bookedUntil: bookingEnd
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (conflicts.length > 0) {
+                const availableUnits = pcUnits.filter(unit =>
+                    !conflicts.some(c => c.unit === String(unit).toUpperCase())
+                );
+                return res.status(409).json({
+                    message: 'Booking conflicts detected',
+                    conflicts,
+                    availableUnits
+                });
+            }
+
         } else if (type === 'ps') {
             if (!psUnits || !Array.isArray(psUnits) || psUnits.length === 0) {
                 return res.status(400).json({ message: 'psUnits must be a non-empty array for type "ps"' });
