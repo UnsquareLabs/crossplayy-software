@@ -132,18 +132,21 @@ function formatDate(dateString) {
 
 // Format  Units
 function formatUnits(bill) {
-    // const type = bill.type?.toUpperCase() || 'PC'; // Default to PC if undefined
     const units = bill.type === 'ps' ? bill.psUnits : bill.pcUnits;
 
     return units.map(unit => {
+        const duration = unit.duration;
+        const timeStr = `${Math.floor(duration / 60)}h ${duration % 60}m`;
+
         if (bill.type === 'ps') {
-            const playerInfo = unit.players ? ` (${unit.players}P)` : '';
-            return `<span class="pc-units">${unit.psId}: ${unit.duration}min${playerInfo}</span>`;
+            const totalPlayers = Array.isArray(unit.players) ? unit.players.length : 1;
+            return `<span class="pc-units">${unit.psId} • ${timeStr} • ${totalPlayers}P</span>`;
         } else {
-            return `<span class="pc-units">${unit.pcId}: ${unit.duration}min</span>`;
+            return `<span class="pc-units">${unit.pcId} • ${timeStr}</span>`;
         }
     });
 }
+
 
 // Render bills table
 function renderBills(bills) {
@@ -270,44 +273,66 @@ function renderPcUnitsFields(pcUnits) {
         container.appendChild(div);
     });
 }
+function togglePlayerDetails(button) {
+    const container = button.nextElementSibling;
+    const isVisible = container.style.display === 'block';
+
+    container.style.display = isVisible ? 'none' : 'block';
+    button.textContent = isVisible ? 'Show Players' : 'Hide Players';
+}
+
 
 function renderPsUnitsFields(psUnits) {
     const container = document.getElementById('editPsUnitsContainer');
     container.innerHTML = '';
 
-    psUnits.forEach(unit => {
+    psUnits.forEach((unit, index) => {
         const div = document.createElement('div');
         div.classList.add('ps-unit-row');
 
+        const totalPlayers = unit.players?.length || 1;
+
+        // Build options for player count select
+        const playerOptions = [1, 2, 3, 4].map(p => {
+            return `<option value="${p}" ${p === totalPlayers ? 'selected' : ''}>${p}</option>`;
+        }).join('');
+
+        // Create player rows if they exist
+        const playerFields = (unit.players || [{ playerNo: 1, duration: unit.duration }]).map((p, i) => {
+            return `
+                <div class="player-row" style="display: flex; gap: 10px; margin-top: 5px;">
+                    <label>Player ${i + 1} Duration:</label>
+                    <input type="number" class="player-duration" data-index="${i}" value="${p.duration}" min="10" step="10" required />
+                </div>
+            `;
+        }).join('');
+
+        // HTML for each unit
         div.innerHTML = `
             <input type="hidden" class="ps-id" value="${unit.psId}" />
             <label>Duration:</label>
             <select class="ps-duration" required>
-                <option value="60" ${unit.duration === 60 ? 'selected' : ''}>1 Hour</option>
-                <option value="90" ${unit.duration === 90 ? 'selected' : ''}>1.5 Hour</option>
-                <option value="120" ${unit.duration === 120 ? 'selected' : ''}>2 Hours</option>
-                <option value="150" ${unit.duration === 150 ? 'selected' : ''}>2.5 Hour</option>
-                <option value="180" ${unit.duration === 180 ? 'selected' : ''}>3 Hours</option>
-                <option value="210" ${unit.duration === 210 ? 'selected' : ''}>3.5 Hour</option>
-                <option value="240" ${unit.duration === 240 ? 'selected' : ''}>4 Hours</option>
-                <option value="270" ${unit.duration === 270 ? 'selected' : ''}>4.5 Hour</option>
-                <option value="300" ${unit.duration === 300 ? 'selected' : ''}>5 Hours</option>
-                <option value="330" ${unit.duration === 330 ? 'selected' : ''}>5.5 Hour</option>
-                <option value="360" ${unit.duration === 360 ? 'selected' : ''}>6 Hours</option>
-                <option value="390" ${unit.duration === 390 ? 'selected' : ''}>6.5 Hour</option>
+                ${[60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390]
+                .map(val => `<option value="${val}" ${unit.duration === val ? 'selected' : ''}>${val / 60} Hr</option>`)
+                .join('')}
             </select>
+
             <label>Players:</label>
-            <select class="ps-players" required>
-                <option value="1" ${unit.players === 1 ? 'selected' : ''}>1</option>
-                <option value="2" ${unit.players === 2 ? 'selected' : ''}>2</option>
-                <option value="3" ${unit.players === 3 ? 'selected' : ''}>3</option>
-                <option value="4" ${unit.players === 4 ? 'selected' : ''}>4</option>
+            <select class="ps-player-count" data-unit-index="${index}">
+                ${playerOptions}
             </select>
+
+            <button type="button" class="toggle-players-btn" onclick="togglePlayerDetails(this)">Show Players</button>
+            <div class="players-container" style="display: none; margin-top: 8px;">
+                ${playerFields}
+            </div>
         `;
 
         container.appendChild(div);
     });
 }
+
+
 
 
 

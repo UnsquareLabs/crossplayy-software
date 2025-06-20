@@ -63,42 +63,66 @@ const createBill = async (req, res) => {
         } else {
 
             for (const unit of psUnits) {
-                const { duration, players } = unit;
-                if (!players || typeof players !== 'number' || players < 1) {
-                    return res.status(400).json({ message: 'Each psUnit must have a valid number of players (>=1).' });
+                const playerCount = Number(unit.players) || 1;
+                const playerList = [];
+                for (let i = 1; i <= playerCount; i++) {
+                    playerList.push({
+                        playerNo: i,
+                        duration: unit.duration
+                    });
                 }
-                const durationHours = duration / 60;
+                unit.players = playerList; // overwrite with expanded format
+            }
 
-                let ratePerPlayerHour = 0;
-                if (hourIST < 22) {
-                    switch (players) {
-                        case 4:
-                            ratePerPlayerHour = 45;
-                            break;
-                        case 3:
-                            ratePerPlayerHour = 50;
-                            break;
-                        case 2:
-                            ratePerPlayerHour = 55;
-                            break;
-                        case 1:
-                            ratePerPlayerHour = 100;
-                            break;
-                        default:
-                            // If players > 4, treat as 4 players pricing or error
-                            ratePerPlayerHour = 40;
+            for (const unit of psUnits) {
+                const { duration, players } = unit;
+
+                if (!Array.isArray(players) || players.length === 0) {
+                    return res.status(400).json({ message: 'Each psUnit must have at least one player with duration.' });
+                }
+
+                // Create time map: for each minute, how many players are active
+                const timeline = new Array(duration).fill(0);
+
+                let startIndex = 0; // We assume all players start from the beginning
+
+                for (const p of players) {
+                    const playerDuration = p.duration;
+                    const endIndex = Math.min(duration, startIndex + playerDuration);
+                    for (let i = startIndex; i < endIndex; i++) {
+                        timeline[i]++;
                     }
-                    totalAmount += durationHours * players * ratePerPlayerHour;
-                } else {
-                    // After 10 PM pricing
-                    if (players === 1) {
-                        ratePerPlayerHour = 120;
-                        totalAmount += durationHours * players * ratePerPlayerHour; // flat rate for single player
+                }
+
+                // Tally up time for each player count
+                const timeCount = {}; // { '1': totalMinutes, '2': totalMinutes, ... }
+                for (const count of timeline) {
+                    if (count === 0) continue;
+                    timeCount[count] = (timeCount[count] || 0) + 1;
+                }
+
+                // Calculate totalAmount
+                for (const [playerCountStr, minutes] of Object.entries(timeCount)) {
+                    const players = parseInt(playerCountStr);
+                    const hours = minutes / 60;
+                    let rate = 0;
+
+                    if (hourIST < 22) {
+                        switch (players) {
+                            case 1: rate = 100; break;
+                            case 2: rate = 55; break;
+                            case 3: rate = 50; break;
+                            case 4: rate = 45; break;
+                            default: rate = 40;
+                        }
                     } else {
-                        totalAmount += 120 * players * durationHours; // flat rate per player for multiplayer
+                        rate = 120;
                     }
+
+                    totalAmount += rate * hours * players; // because each player pays the per-player rate
                 }
             }
+
         }
 
         const billData = {
@@ -393,6 +417,14 @@ const deleteBill = async (req, res) => {
     }
 };
 
+const calculateLoyaltyPoints = (amount) => {
+    if (amount >= 360) return 30;
+    if (amount >= 180) return 15;
+    if (amount >= 150) return 10;
+    if (amount >= 100) return 5;
+    return 0;
+};
+
 const editBill = async (req, res) => {
     try {
         const { id } = req.params;
@@ -411,6 +443,10 @@ const editBill = async (req, res) => {
         const contactNo = bill.contactNo;
         const customer = await Customer.findOne({ contactNo });
 
+        // Step 0: Reverse loyalty from old bill total
+        const prevTotalAmount = bill.amount || 0;
+        const prevLoyaltyEarned = calculateLoyaltyPoints(prevTotalAmount - (bill.loyaltyPoints || 0));
+        customer.loyaltyPoints -= prevLoyaltyEarned;
 
         // Step 1: Restore old balance
         const prevWallet = bill.walletCredit || 0;
@@ -540,6 +576,10 @@ const editBill = async (req, res) => {
         // All good, update bill and customer balance
         customer.walletCredit -= wallet;
         customer.loyaltyPoints -= loyaltyPoints;
+
+        // ✅ Add new loyalty based on (amount - loyalty used)
+        const earned = calculateLoyaltyPoints(totalAmount - loyaltyPoints);
+        customer.loyaltyPoints += earned;
         await customer.save();
 
         const updatedData = {

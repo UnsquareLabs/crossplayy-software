@@ -924,17 +924,26 @@ async function updateUnpaidBills() {
         }
 
         unpaid.forEach((bill) => {
-            const pss = bill.psUnits
-                .map((ps) => {
-                    const hours = Math.floor(ps.duration / 60)
-                    const mins = ps.duration % 60
-                    let timeStr = ""
-                    if (hours > 0) timeStr += `${hours} hr `
-                    if (mins > 0) timeStr += `${mins} min`
-                    const playersStr = ps.players ? ` • ${ps.players}P` : ""
-                    return `${ps.psId} (${timeStr.trim()} ${playersStr})`
-                })
-                .join(", ")
+            const pss = bill.psUnits.map((ps, idx) => {
+                const durationStr = `${Math.floor(ps.duration / 60)}h ${ps.duration % 60}m`
+                const players = ps.players?.length || 1
+
+                const playersDetails = ps.players?.map(p => {
+                    const h = Math.floor(p.duration / 60)
+                    const m = p.duration % 60
+                    const durStr = `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m" : ""}`
+                    return `Player ${p.playerNo}: ${durStr.trim()}`
+                }).join("<br>") || "Player 1: Full duration"
+
+                return `
+            <div style="margin-bottom: 5px;">
+                <strong>${ps.psId}</strong> (${durationStr} • ${players}P)
+                <div class="player-details" style="display:none; margin-left: 10px; font-size: 0.9em; color: #999;">
+                    ${playersDetails}
+                </div>               
+            </div>
+        `
+            }).join("")
 
             const bookingDate = new Date(bill.bookingTime)
             const istTime = bookingDate.toLocaleString("en-IN", {
@@ -955,20 +964,27 @@ async function updateUnpaidBills() {
             const billDiv = document.createElement("div")
             billDiv.className = "bill-item"
             billDiv.innerHTML = `
-                <div class="bill-ps">${bill.userName} • ${bill.contactNo}<br></div>
-                <div class="bill-details">
-                    ${pss}<br>
-                    <small>Booked at: ${istTime}</small>
-                    ${snacksInfo}
-                </div>
-                <div class="bill-amount">₹${bill.amount.toFixed(2)}</div>
-                <button class="pay-btn" onclick="showPaymentModal('${bill._id}')">Pay Bill</button>
-            `
+        <div class="bill-ps">${bill.userName} • ${bill.contactNo}<br></div>
+        <div class="bill-details">
+            ${pss}
+            <small>Booked at: ${istTime}</small>
+            ${snacksInfo}
+        </div>
+        <div class="bill-amount">₹${bill.amount.toFixed(2)}</div>
+        <button class="pay-btn" onclick="showPaymentModal('${bill._id}')">Pay Bill</button>
+    `
             unpaidBillsContainer.appendChild(billDiv)
         })
+
     } catch (err) {
         console.error("Error fetching bills:", err)
         unpaidBillsContainer.innerHTML = '<div style="text-align: center; color: red;">Failed to load bills</div>'
+    }
+}
+function togglePlayers(id) {
+    const el = document.getElementById(id)
+    if (el) {
+        el.style.display = el.style.display === "none" ? "block" : "none"
     }
 }
 
@@ -1020,11 +1036,30 @@ async function showPaymentModal(billId) {
                 console.error("Error fetching wallet credit:", err)
             })
 
-        const psUsageList = bill.psUnits
-            .map((unit) => {
-                return `<div>• ${unit.psId} - ${unit.duration} mins - ${unit.players}P</div>`
-            })
-            .join("")
+        const psUsageList = bill.psUnits.map((ps, index) => {
+            const hours = Math.floor(ps.duration / 60)
+            const mins = ps.duration % 60
+            const durationStr = `${hours > 0 ? hours + "h " : ""}${mins > 0 ? mins + "m" : ""}`.trim()
+
+            const playersDetailId = `ps-players-${index}`
+            const playersDetail = ps.players?.map((p) => {
+                const h = Math.floor(p.duration / 60)
+                const m = p.duration % 60
+                const timeStr = `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m" : ""}`.trim()
+                return `Player ${p.playerNo}: ${timeStr}`
+            }).join("<br>") || "Player 1: Full duration"
+
+            return `
+        <div style="margin-bottom: 8px;">
+            <strong>${ps.psId}</strong> (${durationStr})
+            <button onclick="togglePlayers('${playersDetailId}')" style="margin-left: 10px; font-size: 12px;">Show/Hide Players</button>
+            <div id="${playersDetailId}" style="margin-left: 15px; margin-top: 5px; font-size: 14px; color: #666; display: none;">
+                ${playersDetail}
+            </div>
+        </div>
+    `
+        }).join("")
+
 
         // Fetch Loyalty Points
         fetch(`/api/customer/loyalty/${contactNo}`, {

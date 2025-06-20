@@ -28,10 +28,12 @@ const billSchema = new mongoose.Schema({
       duration: {
         type: Number // in minutes
       },
-      players: {
-        type: Number,
-        default: 1
-      }
+      players: [
+        {
+          playerNo: Number,
+          duration: Number // duration this player used the PS
+        }
+      ]
     }
   ],
   gamingTotal: {
