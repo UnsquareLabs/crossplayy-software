@@ -426,6 +426,63 @@ const createPrebooking = async (req, res) => {
             if (!psUnits || !Array.isArray(psUnits) || psUnits.length === 0) {
                 return res.status(400).json({ message: 'psUnits must be a non-empty array for type "ps"' });
             }
+
+            // Validate structure of each unit
+            for (const unit of psUnits) {
+                if (!unit.psId || typeof unit.duration !== 'number' || !Array.isArray(unit.players) || unit.players.length === 0) {
+                    return res.status(400).json({ message: 'Invalid psUnits structure. Each unit must have psId, duration, and at least one player.' });
+                }
+
+                for (const player of unit.players) {
+                    if (typeof player.playerNo !== 'number' || typeof player.duration !== 'number') {
+                        return res.status(400).json({ message: 'Each player must have playerNo and duration (both numbers).' });
+                    }
+                }
+            }
+
+            const todayBookings = await Prebook.find({
+                type: 'ps',
+                scheduledDate: { $lte: scheduledEnd },
+                isConvertedToBill: false,
+            }).lean();
+
+            const conflicts = [];
+            const requestedPsIds = psUnits.map(u => String(u.psId).toUpperCase());
+
+            for (const booking of todayBookings) {
+                const bookingStart = new Date(booking.scheduledDate);
+                const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+
+                for (const unit of booking.psUnits || []) {
+                    const bookedId = String(unit.psId).toUpperCase();
+                    if (requestedPsIds.includes(bookedId)) {
+                        const overlap =
+                            (scheduledStart >= bookingStart && scheduledStart < bookingEnd) ||
+                            (scheduledEnd > bookingStart && scheduledEnd <= bookingEnd) ||
+                            (scheduledStart <= bookingStart && scheduledEnd >= bookingEnd);
+
+                        if (overlap) {
+                            conflicts.push({
+                                unit: bookedId,
+                                bookedFrom: bookingStart,
+                                bookedUntil: bookingEnd
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (conflicts.length > 0) {
+                const availableUnits = psUnits
+                    .map(u => u.psId)
+                    .filter(id => !conflicts.some(c => c.unit === String(id).toUpperCase()));
+
+                return res.status(409).json({
+                    message: 'Booking conflicts detected',
+                    conflicts,
+                    availableUnits
+                });
+            }       
         } else {
             return res.status(400).json({ message: 'type must be either "pc" or "ps"' });
         }

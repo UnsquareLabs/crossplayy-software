@@ -15,15 +15,25 @@ const prebookSchema = new mongoose.Schema({
     psUnits: [
         {
             psId: {
-                type: String
+                type: String,
+                required: true
             },
             duration: {
-                type: Number // in minutes
+                type: Number, // in minutes
+                required: true
             },
-            players: {
-                type: Number,
-                default: 1
-            }
+            players: [
+                {
+                    playerNo: {
+                        type: Number,
+                        required: true
+                    },
+                    duration: {
+                        type: Number, // in minutes
+                        required: true
+                    }
+                }
+            ]
         }
     ],
     name: {

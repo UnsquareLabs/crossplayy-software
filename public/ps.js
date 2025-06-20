@@ -6,11 +6,12 @@ if (!token) {
     window.location.href = "login.html"
 }
 function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('token');
-        window.location.href = 'login.html';
+    if (confirm("Are you sure you want to logout?")) {
+        localStorage.removeItem("token")
+        window.location.href = "login.html"
     }
 }
+
 // PS Data
 const psData = [
     { id: 1, status: "available" },
@@ -28,6 +29,8 @@ let snacksData = []
 let snacksCart = []
 let currentBillId = null
 let selectedBillInfo = null
+let isPrebookMode = false
+let currentEditingPrebookingId = null
 
 // Audio context for sound effects
 let audioContext
@@ -135,6 +138,405 @@ function createParticles() {
         particle.style.animationDuration = Math.random() * 3 + 3 + "s"
         particlesContainer.appendChild(particle)
     }
+}
+
+// Update prebooking count in header and status card
+async function updatePrebookingCount() {
+    try {
+        const response = await fetch("/api/prebook", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (response.ok) {
+            const prebookings = await response.json()
+            // ✅ Filter only PS type bookings
+            const psBookings = prebookings.filter(p => p.type === 'ps');
+
+            const count = psBookings.length
+
+            // Update header button count
+            const headerCount = document.getElementById("prebookingCount")
+            if (headerCount) {
+                headerCount.textContent = count
+            }
+
+            // Update status card count
+            const statusCount = document.getElementById("prebookingStatusCount")
+            if (statusCount) {
+                statusCount.textContent = count
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching prebooking count:", error)
+    }
+}
+
+// Prebooking Management Functions
+async function openPrebookingModal() {
+    try {
+        const response = await fetch("/api/prebook", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch prebookings")
+        }
+
+        const prebookings = await response.json()
+        const psBookings = prebookings.filter(p => p.type === 'ps');
+
+        displayPrebookings(psBookings)
+        document.getElementById("prebookingModal").classList.add("show")
+        playSound(600, 0.2)
+    } catch (error) {
+        console.error("Error fetching prebookings:", error)
+        alert("Failed to load prebookings. Please try again.")
+    }
+}
+
+function displayPrebookings(prebookings) {
+    const prebookingList = document.getElementById("prebookingList")
+
+    if (prebookings.length === 0) {
+        prebookingList.innerHTML =
+            '<div style="text-align: center; opacity: 0.6; padding: 40px;">No prebookings found</div>'
+        return
+    }
+
+    prebookingList.innerHTML = prebookings
+        .map((prebooking) => {
+            const scheduledDate = new Date(prebooking.scheduledDate)
+            const formattedDate = scheduledDate.toLocaleString("en-IN", {
+                timeZone: "Asia/Kolkata",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            })
+
+            const hours = Math.floor(prebooking.duration / 60)
+            const mins = prebooking.duration % 60
+            let durationStr = ""
+            if (hours > 0) durationStr += `${hours}h `
+            if (mins > 0) durationStr += `${mins}m`
+
+            return `
+            <div class="prebooking-item">
+                <div class="prebooking-info">
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Customer</div>
+                        <div class="prebooking-value">${prebooking.name}</div>
+                    </div>
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Contact</div>
+                        <div class="prebooking-value">${prebooking.contactNo}</div>
+                    </div>
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Scheduled Date</div>
+                        <div class="prebooking-value">${formattedDate}</div>
+                    </div>
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Duration</div>
+                        <div class="prebooking-value">${durationStr.trim()}</div>
+                    </div>
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Type</div>
+                        <div class="prebooking-value">${prebooking.type.toUpperCase()}</div>
+                    </div>
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Units</div>
+                        <div class="prebooking-value">
+                            ${prebooking.type === "pc" ? `${prebooking.pcUnits || 0} PCs` : `${prebooking.psUnits || 0} PS`}
+                        </div>
+                    </div>
+                </div>
+                <div class="prebooking-actions">
+                    <button class="edit-prebooking-btn" onclick="editPrebooking('${prebooking._id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="delete-prebooking-btn" onclick="deletePrebooking('${prebooking._id}')">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        `
+        })
+        .join("")
+}
+
+function closePrebookingModal() {
+    document.getElementById("prebookingModal").classList.remove("show")
+    playSound(400, 0.1)
+}
+
+async function editPrebooking(prebookingId) {
+    try {
+        const response = await fetch("/api/prebook", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch prebooking details")
+        }
+
+        const prebookings = await response.json()
+        const prebooking = prebookings.find((p) => p._id === prebookingId)
+
+        if (!prebooking) {
+            alert("Prebooking not found")
+            return
+        }
+
+        currentEditingPrebookingId = prebookingId
+
+        // Populate edit form
+        document.getElementById("editName").value = prebooking.name
+        document.getElementById("editContactNo").value = prebooking.contactNo
+
+        // Format date for datetime-local input
+        const scheduledDate = new Date(prebooking.scheduledDate)
+        const formattedDateTime = scheduledDate.toISOString().slice(0, 16)
+        document.getElementById("editScheduledDate").value = formattedDateTime
+
+        document.getElementById("editDuration").value = prebooking.duration
+        document.getElementById("editPcUnits").value = prebooking.pcUnits || 0
+        document.getElementById("editPsUnits").value = prebooking.psUnits || 0
+
+        document.getElementById("editPrebookingModal").classList.add("show")
+        playSound(600, 0.2)
+    } catch (error) {
+        console.error("Error loading prebooking for edit:", error)
+        alert("Failed to load prebooking details. Please try again.")
+    }
+}
+
+function closeEditPrebookingModal() {
+    document.getElementById("editPrebookingModal").classList.remove("show")
+    currentEditingPrebookingId = null
+    playSound(400, 0.1)
+}
+
+async function saveEditedPrebooking() {
+    if (!currentEditingPrebookingId) {
+        alert("No prebooking selected for editing")
+        return
+    }
+
+    const name = document.getElementById("editName").value.trim()
+    const contactNo = document.getElementById("editContactNo").value.trim()
+    const scheduledDate = document.getElementById("editScheduledDate").value
+    const duration = Number.parseInt(document.getElementById("editDuration").value)
+    const pcUnits = Number.parseInt(document.getElementById("editPcUnits").value) || 0
+    const psUnits = Number.parseInt(document.getElementById("editPsUnits").value) || 0
+
+    if (!name || !contactNo || !scheduledDate || !duration) {
+        alert("Please fill in all required fields")
+        return
+    }
+
+    if (pcUnits === 0 && psUnits === 0) {
+        alert("Please specify at least one PC or PS unit")
+        return
+    }
+
+    const type = psUnits > 0 ? "ps" : "pc"
+
+    try {
+        const response = await fetch(`/api/prebook/${currentEditingPrebookingId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                name,
+                contactNo,
+                scheduledDate,
+                duration,
+                type,
+                pcUnits: type === "pc" ? pcUnits : 0,
+                psUnits: type === "ps" ? psUnits : 0,
+                billedBy: "Admin", // You can modify this based on your auth system
+            }),
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || "Failed to update prebooking")
+        }
+
+        playSound(800, 0.3)
+        alert("Prebooking updated successfully!")
+        closeEditPrebookingModal()
+        openPrebookingModal() // Refresh the list
+        updatePrebookingCount() // Update counts
+    } catch (error) {
+        console.error("Error updating prebooking:", error)
+        alert("Failed to update prebooking. Please try again.")
+    }
+}
+
+async function deletePrebooking(prebookingId) {
+    if (!confirm("Are you sure you want to delete this prebooking?")) {
+        return
+    }
+
+    try {
+        const response = await fetch(`/api/prebook/${prebookingId}`, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || "Failed to delete prebooking")
+        }
+
+        playSound(400, 0.3)
+        alert("Prebooking deleted successfully!")
+        openPrebookingModal() // Refresh the list
+        updatePrebookingCount() // Update counts
+    } catch (error) {
+        console.error("Error deleting prebooking:", error)
+        alert("Failed to delete prebooking. Please try again.")
+    }
+}
+
+// Auto-convert due prebookings to bills
+async function convertDuePrebookings() {
+    try {
+        const response = await fetch("/api/prebook/convert-due", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (response.ok) {
+            const result = await response.json()
+            if (result.bills && result.bills.length > 0) {
+                console.log(`✅ Converted ${result.bills.length} due prebookings to bills`)
+
+                // Update UI components
+                await updateUnpaidBills()
+                await updatePrebookingCount()
+
+                // Optional: Show a subtle notification
+                showNotification(`${result.bills.length} prebooking(s) converted to bills`, "success")
+            }
+        } else {
+            console.warn("Failed to convert due prebookings:", await response.text())
+        }
+    } catch (error) {
+        console.error("Error in auto-convert prebookings:", error)
+    }
+}
+
+// Notification system for prebooking conversions
+function showNotification(message, type = "info") {
+    // Create notification element if it doesn't exist
+    let notificationContainer = document.getElementById("notificationContainer")
+    if (!notificationContainer) {
+        notificationContainer = document.createElement("div")
+        notificationContainer.id = "notificationContainer"
+        notificationContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            pointer-events: none;
+        `
+        document.body.appendChild(notificationContainer)
+    }
+
+    const notification = document.createElement("div")
+    notification.style.cssText = `
+        background: ${type === "success" ? "rgba(40, 167, 69, 0.9)" : "rgba(0, 123, 255, 0.9)"};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+        font-size: 14px;
+        font-weight: 500;
+        pointer-events: auto;
+        cursor: pointer;
+    `
+
+    notification.textContent = `📅 ${message}`
+    notificationContainer.appendChild(notification)
+
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = "translateX(0)"
+    }, 100)
+
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        notification.style.transform = "translateX(100%)"
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification)
+            }
+        }, 300)
+    }, 4000)
+
+    // Click to dismiss
+    notification.addEventListener("click", () => {
+        notification.style.transform = "translateX(100%)"
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification)
+            }
+        }, 300)
+    })
+}
+
+// Prebooking Mode Toggle
+function togglePrebookMode() {
+    isPrebookMode = !isPrebookMode
+    const prebookButton = document.getElementById("prebookButton")
+    const bookButton = document.getElementById("bookButton")
+    const prebookingSection = document.getElementById("prebookingSection")
+
+    if (isPrebookMode) {
+        prebookButton.classList.add("active")
+        prebookButton.textContent = "📅 Cancel Prebook"
+        bookButton.textContent = "Create Prebooking"
+        prebookingSection.style.display = "block"
+
+        // Set minimum date to current date and time
+        const now = new Date()
+        const minDateTime = now.toISOString().slice(0, 16)
+        document.getElementById("scheduledDateTime").min = minDateTime
+    } else {
+        prebookButton.classList.remove("active")
+        prebookButton.textContent = "📅 Prebook"
+        bookButton.textContent = "Book Now"
+        prebookingSection.style.display = "none"
+    }
+
+    playSound(600, 0.2)
 }
 
 // Snacks Workflow Functions
@@ -730,30 +1132,40 @@ function setPlayersForPS(psId, players) {
 }
 
 function updateSelectedPSsList() {
-    const selectedPSsList = document.getElementById("selectedPSsList")
-    selectedPSsList.innerHTML = ""
+    const selectedPSsList = document.getElementById("selectedPSsList");
+    selectedPSsList.innerHTML = "";
 
     selectedPS5s.forEach((psId) => {
-        const noOfPlayers = psPlayersMap[psId] || 1
+        const players = psPlayersMap[psId] || [{ playerNo: 1, duration: 60 }];
+        const playerCount = players.length;
 
-        const psDiv = document.createElement("div")
+        const psDiv = document.createElement("div");
         psDiv.style.cssText =
-            "padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px;"
+            "padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;";
+
+        // Preview player durations
+        const playerDurations = players
+            .map((p) => `P${p.playerNo}: ${p.duration}min`)
+            .join(", ");
 
         psDiv.innerHTML = `
-            <span>PS ${psId}</span>
+            <span><strong>PS ${psId}</strong></span>
             <label>
                 Players:
-                <select onchange="setPlayersForPS(${psId}, this.value)">
-                    ${[1, 2, 3, 4].map((p) => `<option value="${p}" ${p === noOfPlayers ? "selected" : ""}>${p}</option>`).join("")}
+                <select onchange="setPlayersForPS('${psId}', this.value)">
+                    ${[1, 2, 3, 4].map((p) =>
+            `<option value="${p}" ${p === playerCount ? "selected" : ""}>${p}</option>`
+        ).join("")}
                 </select>
             </label>
-            <button onclick="removeSelectedPS(${psId})" style="background: rgba(255,69,58,0.2); border: 1px solid rgba(255,69,58,0.5); color: #ff453a; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Remove</button>
-        `
+            <span style="font-size: 0.9em; color: #ccc;">[ ${playerDurations} ]</span>
+            <button onclick="removeSelectedPS('${psId}')" style="background: rgba(255,69,58,0.2); border: 1px solid rgba(255,69,58,0.5); color: #ff453a; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Remove</button>
+        `;
 
-        selectedPSsList.appendChild(psDiv)
-    })
+        selectedPSsList.appendChild(psDiv);
+    });
 }
+
 
 function removeSelectedPS(psId) {
     selectedPS5s = selectedPS5s.filter((id) => id !== psId)
@@ -777,82 +1189,151 @@ function cancelSelection() {
     })
 
     selectedPS5s = []
+    isPrebookMode = false
+
+    // Reset prebook mode UI
+    const prebookButton = document.getElementById("prebookButton")
+    const bookButton = document.getElementById("bookButton")
+    const prebookingSection = document.getElementById("prebookingSection")
+
+    prebookButton.classList.remove("active")
+    prebookButton.textContent = "📅 Prebook"
+    bookButton.textContent = "Book Now"
+    prebookingSection.style.display = "none"
+
     document.getElementById("bookSection").classList.remove("show")
 }
 
 async function bookSelectedPSs() {
+    const bookButton = document.getElementById("bookButton")
+    bookButton.disabled = true
+
     const hours = Number.parseFloat(document.getElementById("hoursSelect").value)
-    const userName = document.getElementById("userName").value
-    const contactNumber = document.getElementById("contactNumber").value
-    const bookButton = document.getElementById('bookButton'); // 🔁 Make sure your button has this ID
-    bookButton.disabled = true; // Disable immediately
+    const userName = document.getElementById("userName").value.trim()
+    const contactNumber = document.getElementById("contactNumber").value.trim()
+
     if (!userName || !contactNumber) {
         alert("Please fill in all fields")
+        bookButton.disabled = false
         return
     }
 
     const duration = hours * 60
 
-    const bookings = selectedPS5s.map((psId) => ({
-        psId: `PS${psId}`,
-        duration,
-        players: psPlayersMap[psId] || 1,
-    }))
+    if (isPrebookMode) {
+        // Handle prebooking
+        const scheduledDateTime = document.getElementById("scheduledDateTime").value
 
-    try {
-        const response = await fetch("/api/ps/book", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ bookings }),
-        })
-
-        const result = await response.json()
-
-        if (!response.ok) {
-            alert(`Booking failed: ${result.message}`)
+        if (!scheduledDateTime) {
+            alert("Please select a scheduled date and time for prebooking")
+            bookButton.disabled = false
             return
         }
 
-        const billPayload = {
-            userName,
-            contactNo: contactNumber,
-            psUnits: bookings,
-            type: "ps",
+        try {
+            const response = await fetch("/api/prebook/create", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    type: "ps",
+                    pcUnits: [],
+                    psUnits: selectedPS5s,
+                    name: userName,
+                    contactNo: contactNumber,
+                    scheduledDate: scheduledDateTime,
+                    duration: duration,
+                    billedBy: "Admin", // You can modify this based on your auth system
+                }),
+            })
+
+            const result = await response.json()
+
+            if (!response.ok) {
+                alert(`Prebooking failed: ${result.message}`)
+                return
+            }
+
+            playSound(800, 0.3)
+            alert("Prebooking created successfully!")
+
+            // Reset form
+            document.getElementById("userName").value = ""
+            document.getElementById("contactNumber").value = ""
+            document.getElementById("hoursSelect").value = "1"
+            document.getElementById("scheduledDateTime").value = ""
+
+            cancelSelection()
+            updatePrebookingCount() // Update prebooking counts
+        } catch (error) {
+            console.error("Prebooking error:", error)
+            alert("Prebooking failed. Please try again.")
         }
+    } else {
+        // Handle regular booking
+        const bookings = selectedPS5s.map((psId) => ({
+            psId: `PS${psId}`,
+            duration,
+            players: psPlayersMap[psId] || 1,
+        }))
 
-        const billResponse = await fetch("/api/bills/create", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify(billPayload),
-        })
+        try {
+            const response = await fetch("/api/ps/book", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ bookings }),
+            })
 
-        const billResult = await billResponse.json()
+            const result = await response.json()
 
-        if (!billResponse.ok) {
-            alert(`Billing failed: ${billResult.message}`)
-            return
+            if (!response.ok) {
+                alert(`Booking failed: ${result.message}`)
+                return
+            }
+
+            const billPayload = {
+                userName,
+                contactNo: contactNumber,
+                psUnits: bookings,
+                type: "ps",
+            }
+
+            const billResponse = await fetch("/api/bills/create", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify(billPayload),
+            })
+
+            const billResult = await billResponse.json()
+
+            if (!billResponse.ok) {
+                alert(`Billing failed: ${billResult.message}`)
+                return
+            }
+
+            playSound(800, 0.3)
+
+            await updateUnpaidBills()
+            await initializePSCards()
+            cancelSelection()
+
+            document.getElementById("userName").value = ""
+            document.getElementById("contactNumber").value = ""
+            document.getElementById("hoursSelect").value = "1"
+        } catch (error) {
+            console.error("Booking error:", error)
+            alert("Booking failed. Please try again.")
         }
-
-        playSound(800, 0.3)
-
-        await updateUnpaidBills()
-        await initializePSCards()
-        cancelSelection()
-
-        document.getElementById("userName").value = ""
-        document.getElementById("contactNumber").value = ""
-        document.getElementById("hoursSelect").value = "1"
-    } catch (error) {
-        console.error("Booking error:", error)
-        alert("Booking failed. Please try again.")
-    } finally {
-        setTimeout(() => {
-            bookButton.disabled = false; // Re-enable after 5 seconds
-        }, 5000);
     }
+
+    setTimeout(() => {
+        bookButton.disabled = false
+    }, 5000)
 }
 
 async function extendTime(psId, minutes) {
@@ -924,18 +1405,22 @@ async function updateUnpaidBills() {
         }
 
         unpaid.forEach((bill) => {
-            const pss = bill.psUnits.map((ps, idx) => {
-                const durationStr = `${Math.floor(ps.duration / 60)}h ${ps.duration % 60}m`
-                const players = ps.players?.length || 1
+            const pss = bill.psUnits
+                .map((ps, idx) => {
+                    const durationStr = `${Math.floor(ps.duration / 60)}h ${ps.duration % 60}m`
+                    const players = ps.players?.length || 1
 
-                const playersDetails = ps.players?.map(p => {
-                    const h = Math.floor(p.duration / 60)
-                    const m = p.duration % 60
-                    const durStr = `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m" : ""}`
-                    return `Player ${p.playerNo}: ${durStr.trim()}`
-                }).join("<br>") || "Player 1: Full duration"
+                    const playersDetails =
+                        ps.players
+                            ?.map((p) => {
+                                const h = Math.floor(p.duration / 60)
+                                const m = p.duration % 60
+                                const durStr = `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m" : ""}`
+                                return `Player ${p.playerNo}: ${durStr.trim()}`
+                            })
+                            .join("<br>") || "Player 1: Full duration"
 
-                return `
+                    return `
             <div style="margin-bottom: 5px;">
                 <strong>${ps.psId}</strong> (${durationStr} • ${players}P)
                 <div class="player-details" style="display:none; margin-left: 10px; font-size: 0.9em; color: #999;">
@@ -943,7 +1428,8 @@ async function updateUnpaidBills() {
                 </div>               
             </div>
         `
-            }).join("")
+                })
+                .join("")
 
             const bookingDate = new Date(bill.bookingTime)
             const istTime = bookingDate.toLocaleString("en-IN", {
@@ -975,7 +1461,6 @@ async function updateUnpaidBills() {
     `
             unpaidBillsContainer.appendChild(billDiv)
         })
-
     } catch (err) {
         console.error("Error fetching bills:", err)
         unpaidBillsContainer.innerHTML = '<div style="text-align: center; color: red;">Failed to load bills</div>'
@@ -1036,20 +1521,24 @@ async function showPaymentModal(billId) {
                 console.error("Error fetching wallet credit:", err)
             })
 
-        const psUsageList = bill.psUnits.map((ps, index) => {
-            const hours = Math.floor(ps.duration / 60)
-            const mins = ps.duration % 60
-            const durationStr = `${hours > 0 ? hours + "h " : ""}${mins > 0 ? mins + "m" : ""}`.trim()
+        const psUsageList = bill.psUnits
+            .map((ps, index) => {
+                const hours = Math.floor(ps.duration / 60)
+                const mins = ps.duration % 60
+                const durationStr = `${hours > 0 ? hours + "h " : ""}${mins > 0 ? mins + "m" : ""}`.trim()
 
-            const playersDetailId = `ps-players-${index}`
-            const playersDetail = ps.players?.map((p) => {
-                const h = Math.floor(p.duration / 60)
-                const m = p.duration % 60
-                const timeStr = `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m" : ""}`.trim()
-                return `Player ${p.playerNo}: ${timeStr}`
-            }).join("<br>") || "Player 1: Full duration"
+                const playersDetailId = `ps-players-${index}`
+                const playersDetail =
+                    ps.players
+                        ?.map((p) => {
+                            const h = Math.floor(p.duration / 60)
+                            const m = p.duration % 60
+                            const timeStr = `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m" : ""}`.trim()
+                            return `Player ${p.playerNo}: ${timeStr}`
+                        })
+                        .join("<br>") || "Player 1: Full duration"
 
-            return `
+                return `
         <div style="margin-bottom: 8px;">
             <strong>${ps.psId}</strong> (${durationStr})
             <button onclick="togglePlayers('${playersDetailId}')" style="margin-left: 10px; font-size: 12px;">Show/Hide Players</button>
@@ -1058,27 +1547,27 @@ async function showPaymentModal(billId) {
             </div>
         </div>
     `
-        }).join("")
-
+            })
+            .join("")
 
         // Fetch Loyalty Points
         fetch(`/api/customer/loyalty/${contactNo}`, {
-            method: 'GET',
+            method: "GET",
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
         })
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 if (data.loyaltyPoints !== undefined) {
-                    const loyaltyDisplay = document.getElementById('loyaltyPointsDisplay');
-                    loyaltyDisplay.innerHTML = `Available Loyalty Points: ₹${data.loyaltyPoints}`;
+                    const loyaltyDisplay = document.getElementById("loyaltyPointsDisplay")
+                    loyaltyDisplay.innerHTML = `Available Loyalty Points: ₹${data.loyaltyPoints}`
                 }
             })
-            .catch(err => {
-                console.error('Error fetching loyalty points:', err);
-            });
+            .catch((err) => {
+                console.error("Error fetching loyalty points:", err)
+            })
 
         let snacksSection = ""
         if (bill.snacks && bill.snacks.length > 0) {
@@ -1179,40 +1668,40 @@ async function confirmPayment() {
     const upi = Number.parseInt(document.getElementById("upiInput").value, 10) || 0
     const discount = Number.parseInt(document.getElementById("discountInput").value, 10) || 0
     const useWallet = document.getElementById("useWalletCheckbox").checked
-    const useLoyalty = document.getElementById('useLoyaltyCheckbox').checked;
-    let wallet = -1;  // Default to -1 if not used
-    let loyalty = -1;
+    const useLoyalty = document.getElementById("useLoyaltyCheckbox").checked
+    let wallet = -1 // Default to -1 if not used
+    let loyalty = -1
 
     if (useWallet) {
-        const walletText = document.getElementById('walletCreditDisplay').innerText;
-        const match = walletText.match(/₹(\d+)/);
+        const walletText = document.getElementById("walletCreditDisplay").innerText
+        const match = walletText.match(/₹(\d+)/)
         if (match && match[1]) {
-            wallet = parseInt(match[1], 10);
+            wallet = Number.parseInt(match[1], 10)
         }
     }
 
     if (useLoyalty) {
-        const loyaltyText = document.getElementById('loyaltyPointsDisplay').innerText;
-        const match = loyaltyText.match(/₹(\d+)/);
+        const loyaltyText = document.getElementById("loyaltyPointsDisplay").innerText
+        const match = loyaltyText.match(/₹(\d+)/)
         if (match && match[1]) {
-            loyalty = parseInt(match[1], 10);
+            loyalty = Number.parseInt(match[1], 10)
         }
     }
 
     try {
         const oldBillRes = await fetch(`/api/bills/${billId}`, {
-            method: 'GET',
+            method: "GET",
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
 
-        if (!oldBillRes.ok) throw new Error('Failed to fetch bill before payment');
+        if (!oldBillRes.ok) throw new Error("Failed to fetch bill before payment")
 
-        const oldBill = await oldBillRes.json();
-        const paidAmt = oldBill.paidAmt || 0;
-        const oldGamingTotal = paidAmt !== 0 ? (oldBill.gamingTotal || 0) : 0;
+        const oldBill = await oldBillRes.json()
+        const paidAmt = oldBill.paidAmt || 0
+        const oldGamingTotal = paidAmt !== 0 ? oldBill.gamingTotal || 0 : 0
 
         const response = await fetch(`/api/bills/${billId}/pay`, {
             method: "PUT",
@@ -1230,49 +1719,49 @@ async function confirmPayment() {
         }
 
         const newBillRes = await fetch(`/api/bills/${billId}`, {
-            method: 'GET',
+            method: "GET",
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
 
-        if (!newBillRes.ok) throw new Error('Failed to fetch updated bill');
+        if (!newBillRes.ok) throw new Error("Failed to fetch updated bill")
 
-        const newBill = await newBillRes.json();
-        const newGamingTotal = newBill.gamingTotal || 0;
+        const newBill = await newBillRes.json()
+        const newGamingTotal = newBill.gamingTotal || 0
 
         // 4. Loyalty Points Calculation
         const calculateLoyaltyPoints = (amount) => {
-            if (amount >= 360) return 30;
-            if (amount >= 180) return 15;
-            if (amount >= 150) return 10;
-            if (amount >= 100) return 5;
-            return 0;
-        };
+            if (amount >= 360) return 30
+            if (amount >= 180) return 15
+            if (amount >= 150) return 10
+            if (amount >= 100) return 5
+            return 0
+        }
 
-        const prevPoints = calculateLoyaltyPoints(oldGamingTotal);
-        const newPoints = calculateLoyaltyPoints(newGamingTotal);
-        console.log(prevPoints);
+        const prevPoints = calculateLoyaltyPoints(oldGamingTotal)
+        const newPoints = calculateLoyaltyPoints(newGamingTotal)
+        console.log(prevPoints)
         console.log(newPoints)
-        const netLoyaltyPoints = newPoints - prevPoints;
+        const netLoyaltyPoints = newPoints - prevPoints
 
         const customerPayload = {
             name: newBill.userName,
             contactNo: newBill.contactNo,
-            loyaltyPoints: netLoyaltyPoints
-        };
+            loyaltyPoints: netLoyaltyPoints,
+        }
 
-        const customerRes = await fetch('/api/customer/createOrAdd', {
-            method: 'POST',
+        const customerRes = await fetch("/api/customer/createOrAdd", {
+            method: "POST",
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
             },
-            body: JSON.stringify(customerPayload)
-        });
+            body: JSON.stringify(customerPayload),
+        })
 
-        const customerResult = await customerRes.json();
+        const customerResult = await customerRes.json()
 
         if (!customerRes.ok) {
             console.warn("Customer save failed:", customerResult.message)
@@ -1301,6 +1790,10 @@ createParticles()
 setupMenu()
 initializePSCards()
 updateUnpaidBills()
+updatePrebookingCount() // Initialize prebooking count
+
+// Update prebooking count periodically
+setInterval(updatePrebookingCount, 30000) // Update every 30 seconds
 
 // Keyboard shortcuts
 document.addEventListener("keydown", (e) => {
@@ -1308,6 +1801,9 @@ document.addEventListener("keydown", (e) => {
         cancelSelection()
         closePaymentModal()
         closeBillSelection()
+        closePrebookingModal()
+        closeEditPrebookingModal()
+
         if (document.getElementById("snacksPanel").classList.contains("open")) {
             closeSnacksPanel()
         }
@@ -1329,6 +1825,8 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("click", (e) => {
     const snacksPanel = document.getElementById("snacksPanel")
     const billSelectionModal = document.getElementById("billSelectionModal")
+    const prebookingModal = document.getElementById("prebookingModal")
+    const editPrebookingModal = document.getElementById("editPrebookingModal")
 
     if (!snacksPanel.contains(e.target) && !e.target.closest(".add-snacks-btn")) {
         if (snacksPanel.classList.contains("open")) {
@@ -1342,4 +1840,26 @@ document.addEventListener("click", (e) => {
     ) {
         closeBillSelection()
     }
+
+    if (
+        !prebookingModal.querySelector(".prebooking-content").contains(e.target) &&
+        prebookingModal.classList.contains("show")
+    ) {
+        closePrebookingModal()
+    }
+
+    if (
+        !editPrebookingModal.querySelector(".edit-prebooking-content").contains(e.target) &&
+        editPrebookingModal.classList.contains("show")
+    ) {
+        closeEditPrebookingModal()
+    }
 })
+
+// Start auto-conversion of due prebookings (runs every 30 seconds)
+setInterval(convertDuePrebookings, 30000)
+
+// Run once immediately on page load
+convertDuePrebookings()
+
+console.log("🔄 Auto-conversion of due prebookings started (30-second interval)")

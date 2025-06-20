@@ -155,7 +155,11 @@ async function updatePrebookingCount() {
 
     if (response.ok) {
       const prebookings = await response.json()
-      const count = prebookings.length
+      // ✅ Filter only PS type bookings
+      const psBookings = prebookings.filter(p => p.type === 'ps');
+
+      const count = psBookings.length
+
 
       // Update header button count
       const headerCount = document.getElementById("prebookingCount")
@@ -190,7 +194,9 @@ async function openPrebookingModal() {
     }
 
     const prebookings = await response.json()
-    displayPrebookings(prebookings)
+    const psBookings = prebookings.filter(p => p.type === 'ps');
+
+    displayPrebookings(psBookings)
     document.getElementById("prebookingModal").classList.add("show")
     playSound(600, 0.2)
   } catch (error) {
