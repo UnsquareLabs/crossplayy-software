@@ -643,6 +643,10 @@ body {
 .hidden {
     display: none !important;
 }
+.unit-clickable:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    text-decoration: underline;
+}
 
 .logo-image {
     height: 85px;

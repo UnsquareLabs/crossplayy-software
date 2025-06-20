@@ -55,11 +55,19 @@ const editLogSchema = new mongoose.Schema(
               type: Number,
               required: true,
             },
-            players: {
-              type: Number,
-              default: 1,
-            },
-          },
+            players: [
+              {
+                playerNo: {
+                  type: Number,
+                  required: true,
+                },
+                duration: {
+                  type: Number,
+                  required: true,
+                }
+              }
+            ]
+          }
         ],
         editedBy: {
           type: String,

@@ -286,49 +286,86 @@ function renderPsUnitsFields(psUnits) {
     const container = document.getElementById('editPsUnitsContainer');
     container.innerHTML = '';
 
-    psUnits.forEach((unit, index) => {
+    psUnits.forEach((unit, unitIndex) => {
         const div = document.createElement('div');
-        div.classList.add('ps-unit-row');
+        div.className = 'ps-unit-row';
+        const players = unit.players?.length ? unit.players : [{ playerNo: 1, duration: unit.duration }];
 
-        const totalPlayers = unit.players?.length || 1;
+        const playerRows = players.map((p, playerIndex) => `
+      <div class="player-row" style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+        <label style="width: 80px;">Player ${playerIndex + 1}:</label>
+        <input type="number" class="player-duration" value="${p.duration}" min="10" step="10" required style="width: 80px;" />
+        <button type="button" onclick="deletePlayer(${unitIndex}, ${playerIndex})" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px;">✕</button>
+      </div>
+    `).join('');
 
-        // Build options for player count select
-        const playerOptions = [1, 2, 3, 4].map(p => {
-            return `<option value="${p}" ${p === totalPlayers ? 'selected' : ''}>${p}</option>`;
-        }).join('');
-
-        // Create player rows if they exist
-        const playerFields = (unit.players || [{ playerNo: 1, duration: unit.duration }]).map((p, i) => {
-            return `
-                <div class="player-row" style="display: flex; gap: 10px; margin-top: 5px;">
-                    <label>Player ${i + 1} Duration:</label>
-                    <input type="number" class="player-duration" data-index="${i}" value="${p.duration}" min="10" step="10" required />
-                </div>
-            `;
-        }).join('');
-
-        // HTML for each unit
         div.innerHTML = `
-            <input type="hidden" class="ps-id" value="${unit.psId}" />
-            <label>Duration:</label>
-            <select class="ps-duration" required>
-                ${[60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390]
-                .map(val => `<option value="${val}" ${unit.duration === val ? 'selected' : ''}>${val / 60} Hr</option>`)
-                .join('')}
-            </select>
+      <input type="hidden" class="ps-id" value="${unit.psId}" />
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-weight: bold;"> ${unit.psId}</div>
+        <button type="button" onclick="togglePlayers(${unitIndex})"
+          style="background: #6c757d; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px;"
+        >Show Players</button>
+      </div>
 
-            <label>Players:</label>
-            <select class="ps-player-count" data-unit-index="${index}">
-                ${playerOptions}
-            </select>
-
-            <button type="button" class="toggle-players-btn" onclick="togglePlayerDetails(this)">Show Players</button>
-            <div class="players-container" style="display: none; margin-top: 8px;">
-                ${playerFields}
-            </div>
-        `;
+      <div class="players-container" style="display: none; margin-top: 10px;">
+        ${playerRows}
+        <button type="button" onclick="addPlayer(${unitIndex})"
+          style="margin-top: 8px; background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 4px;"
+        >+ Add Player</button>
+      </div>
+    `;
 
         container.appendChild(div);
+    });
+}
+
+function togglePlayers(unitIndex) {
+    const unit = document.querySelectorAll('.ps-unit-row')[unitIndex];
+    const container = unit.querySelector('.players-container');
+    const button = unit.querySelector('button');
+
+    const isHidden = container.style.display === 'none';
+    container.style.display = isHidden ? 'block' : 'none';
+    button.textContent = isHidden ? 'Hide Players' : 'Show Players';
+}
+
+
+
+function addPlayer(unitIndex) {
+    const unit = document.querySelectorAll('.ps-unit-row')[unitIndex];
+    const playersContainer = unit.querySelector('.players-container');
+    const playerCount = playersContainer.querySelectorAll('.player-row').length;
+    if (playerCount >= 4) {
+        alert("Maximum 4 players allowed per unit.");
+        return;
+    }
+    const newRow = document.createElement('div');
+    newRow.className = 'player-row';
+    newRow.style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;";
+    newRow.innerHTML = `
+    <label style="width: 80px;">Player ${playerCount + 1}:</label>
+    <input type="number" class="player-duration" value="60" min="10" step="10" required style="width: 80px;" />
+    <button type="button" onclick="deletePlayer(${unitIndex}, ${playerCount})" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px;">✕</button>
+  `;
+    playersContainer.insertBefore(newRow, playersContainer.lastElementChild);
+}
+
+function deletePlayer(unitIndex, playerIndex) {
+    const unit = document.querySelectorAll('.ps-unit-row')[unitIndex];
+    const rows = unit.querySelectorAll('.player-row');
+    if (rows.length <= 1) {
+        alert("At least one player is required.");
+        return;
+    }
+    if (rows[playerIndex]) {
+        rows[playerIndex].remove();
+    }
+
+    // Re-label player numbers and reset button handlers
+    unit.querySelectorAll('.player-row').forEach((row, i) => {
+        row.querySelector('label').textContent = `Player ${i + 1}:`;
+        row.querySelector('button').setAttribute('onclick', `deletePlayer(${unitIndex}, ${i})`);
     });
 }
 
@@ -447,11 +484,25 @@ async function submitBillEdit() {
         duration: parseInt(row.querySelector('.pc-duration').value)
     }));
 
-    const psUnits = Array.from(document.querySelectorAll('#editPsUnitsContainer .ps-unit-row')).map(row => ({
-        psId: row.querySelector('.ps-id').value,
-        duration: parseInt(row.querySelector('.ps-duration').value),
-        players: parseInt(row.querySelector('.ps-players').value)
-    }));
+    const psUnits = Array.from(document.querySelectorAll('#editPsUnitsContainer .ps-unit-row')).map(row => {
+        const psId = row.querySelector('.ps-id').value;
+
+        const playersContainer = row.querySelector('.players-container');
+        const players = Array.from(playersContainer.querySelectorAll('.player-row')).map((playerRow, index) => {
+            const duration = parseInt(playerRow.querySelector('.player-duration').value);
+            return {
+                playerNo: index + 1,
+                duration,
+            };
+        });
+
+        const duration = players.length > 0
+            ? Math.max(...players.map(p => p.duration))
+            : 0;
+
+        return { psId, duration, players };
+    });
+
     const updatedBill = {
         cash,
         upi,

@@ -444,8 +444,8 @@ const editBill = async (req, res) => {
         const customer = await Customer.findOne({ contactNo });
 
         // Step 0: Reverse loyalty from old bill total
-        const prevTotalAmount = bill.amount || 0;
-        const prevLoyaltyEarned = calculateLoyaltyPoints(prevTotalAmount - (bill.loyaltyPoints || 0));
+        const prevTotalAmount = bill.amount;
+        const prevLoyaltyEarned = calculateLoyaltyPoints(prevTotalAmount);
         customer.loyaltyPoints -= prevLoyaltyEarned;
 
         // Step 1: Restore old balance
@@ -461,7 +461,11 @@ const editBill = async (req, res) => {
             // Rollback customer balance
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
+            customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
+            const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
+            if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
+
             return res.status(400).json({
                 message: `Insufficient wallet balance. Available: ₹${customer.walletCredit}, Required more: ₹${wallet}`
             });
@@ -470,7 +474,11 @@ const editBill = async (req, res) => {
         if (loyaltyPoints > customer.loyaltyPoints) {
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
+            customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
+            const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
+            if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
+
             return res.status(400).json({
                 message: `Insufficient loyalty points. Available: ${customer.loyaltyPoints}, Required: ${loyaltyPoints}`
             });
@@ -482,8 +490,17 @@ const editBill = async (req, res) => {
                 .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
         const normalizePSUnits = (units) =>
-            units.map(({ psId, duration, players }) => ({ psId, duration, players }))
-                .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+            units.map(({ psId, duration, players }) => ({
+                psId,
+                duration,
+                players: Array.isArray(players)
+                    ? players
+                        .map(({ playerNo, duration }) => ({ playerNo, duration }))
+                        .sort((a, b) => a.playerNo - b.playerNo)
+                    : players
+            }))
+                .sort((a, b) => a.psId.localeCompare(b.psId));
+
 
         const normalizedExistingPC = normalizePCUnits(bill.pcUnits);
         const normalizedIncomingPC = normalizePCUnits(pcUnits);
@@ -521,23 +538,34 @@ const editBill = async (req, res) => {
             }
         } else if (type === 'ps') {
             for (const unit of psUnits) {
-                const { duration, players } = unit;
-                if (!players || typeof players !== 'number' || players < 1) {
-                    return res.status(400).json({ message: 'Each psUnit must have valid players (>=1).' });
+                const { psId, duration, players } = unit;
+
+                if (!Array.isArray(players) || players.length === 0) {
+                    return res.status(400).json({ message: `Each psUnit must have at least one player.` });
                 }
-                const durationHours = duration / 60;
-                if (hourIST < 22) {
-                    let ratePerPlayerHour = 0;
-                    switch (players) {
-                        case 4: ratePerPlayerHour = 45; break;
-                        case 3: ratePerPlayerHour = 50; break;
-                        case 2: ratePerPlayerHour = 55; break;
-                        case 1: ratePerPlayerHour = 100; break;
-                        default: ratePerPlayerHour = 40;
+
+                for (const player of players) {
+                    const playerDurationHours = (player.duration || 0) / 60;
+
+                    if (playerDurationHours <= 0) continue;
+
+                    let ratePerHour;
+
+                    if (hourIST < 22) {
+                        // Daytime pricing
+                        switch (players.length) {
+                            case 4: ratePerHour = 45; break;
+                            case 3: ratePerHour = 50; break;
+                            case 2: ratePerHour = 55; break;
+                            case 1: ratePerHour = 100; break;
+                            default: ratePerHour = 40;
+                        }
+                    } else {
+                        // Nighttime pricing (after 10 PM)
+                        ratePerHour = 120;
                     }
-                    totalAmount += durationHours * players * ratePerPlayerHour;
-                } else {
-                    totalAmount += durationHours * players * 120;
+
+                    totalAmount += playerDurationHours * ratePerHour;
                 }
             }
         } else {

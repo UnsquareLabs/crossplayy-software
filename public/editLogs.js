@@ -227,22 +227,33 @@ function clearSearch() {
 
 // Format units for display
 function formatUnits(version, bill = null) {
-    const units = []
+    const units = [];
 
-    // Use version data if available, otherwise use bill data
-    const pcUnits = version?.pcUnits || bill?.pcUnits || []
-    const psUnits = version?.psUnits || bill?.psUnits || []
+    const pcUnits = version?.pcUnits || bill?.pcUnits || [];
+    const psUnits = version?.psUnits || bill?.psUnits || [];
 
+    // PC Units Display
     pcUnits.forEach((unit) => {
-        units.push(`<span class="unit-badge">${unit.pcId}: ${unit.duration}min</span>`)
-    })
+        units.push(`<span class="unit-badge">${unit.pcId}: ${unit.duration}min</span>`);
+    });
 
-    psUnits.forEach((unit) => {
-        units.push(`<span class="unit-badge">${unit.psId}: ${unit.duration}min</span>`)
-    })
+    // PS Units Display with Click for Player Info
+    psUnits.forEach((unit, index) => {
+        const players = unit.players || [];
+        const playerDetails = players.map(p => `Player ${p.playerNo}: ${p.duration}min`).join('\\n') || "No players";
 
-    return units.length > 0 ? units.join("") : '<span class="empty-cell">—</span>'
+        const onClick = `onclick="alert('PS ${unit.psId}\\n${playerDetails}')"`;
+
+        units.push(`
+            <span class="unit-badge unit-clickable" style="cursor: pointer;" ${onClick}>
+                ${unit.psId}: ${unit.duration}min
+            </span>
+        `);
+    });
+
+    return units.length > 0 ? units.join("") : '<span class="empty-cell">—</span>';
 }
+
 
 // Format snacks for display
 function formatSnacks(bill) {
