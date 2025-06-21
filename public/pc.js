@@ -156,7 +156,7 @@ async function updatePrebookingCount() {
     if (response.ok) {
       const prebookings = await response.json()
       // ✅ Filter only PS type bookings
-      const psBookings = prebookings.filter(p => p.type === 'ps');
+      const psBookings = prebookings.filter(p => p.type === 'pc');
 
       const count = psBookings.length
 
@@ -194,7 +194,7 @@ async function openPrebookingModal() {
     }
 
     const prebookings = await response.json()
-    const psBookings = prebookings.filter(p => p.type === 'ps');
+    const psBookings = prebookings.filter(p => p.type === 'pc');
 
     displayPrebookings(psBookings)
     document.getElementById("prebookingModal").classList.add("show")
@@ -517,12 +517,19 @@ function showNotification(message, type = "info") {
 
 // Prebooking Mode Toggle
 function togglePrebookMode() {
-  isPrebookMode = !isPrebookMode
+  // Prevent toggling in occupied context
+  // if (occupiedPcContext) {
+  //   playSound(300, 0.1);
+  //   isPrebookMode = true
+  //   // return;
+  // }
+
+  isPrebookMode = true;
   const prebookButton = document.getElementById("prebookButton")
   const bookButton = document.getElementById("bookButton")
   const prebookingSection = document.getElementById("prebookingSection")
 
-  if (isPrebookMode) {
+  if (flag) {
     prebookButton.classList.add("active")
     prebookButton.textContent = "📅 Cancel Prebook"
     bookButton.textContent = "Create Prebooking"
@@ -536,9 +543,10 @@ function togglePrebookMode() {
     prebookButton.classList.remove("active")
     prebookButton.textContent = "📅 Prebook"
     bookButton.textContent = "Book Now"
-    prebookingSection.style.display = "none"
+    prebookingSection.style.display = "block"
   }
 
+  flag = false;
   playSound(600, 0.2)
 }
 
@@ -1154,7 +1162,7 @@ function updateStatusCounts() {
   document.getElementById("endingSoonCount").textContent = endingSoon
   document.getElementById("occupiedCount").textContent = occupied
 }
-
+let flag = false;
 function selectPC(pcId) {
   const pc = pcData.find((p) => p.id === pcId)
 
@@ -1162,7 +1170,42 @@ function selectPC(pcId) {
     console.warn(`PC with ID ${pcId} not found in pcData.`)
     return
   }
+  // For occupied/ending-soon PCs
+  if (pc.status === "occupied" || pc.status === "ending-soon" || pc.status === "payment-due") {
+    playSound(500, 0.2);
 
+    // Set context flag
+    occupiedPcContext = true;
+
+    isPrebookMode = true;
+    flag = true;
+    // Clear previous selection and select only this PC
+    selectedPCs = [pcId];
+    updateSelectedPCsList();
+
+    // Show booking section with prebook mode
+    document.getElementById("bookSection").classList.add("show");
+
+    // Force prebook mode UI
+    const prebookButton = document.getElementById("prebookButton");
+    const bookButton = document.getElementById("bookButton");
+    const prebookingSection = document.getElementById("prebookingSection");
+
+    prebookButton.classList.add("active");
+    prebookButton.textContent = "📅 Cancel Prebook";
+    bookButton.textContent = "Create Prebooking";
+    prebookingSection.style.display = "block";
+
+    // Hide regular booking button
+    bookButton.style.display = "block";
+
+    // Set minimum date to current date and time
+    const now = new Date();
+    const minDateTime = now.toISOString().slice(0, 16);
+    document.getElementById("scheduledDateTime").min = minDateTime;
+
+    return;
+  }
   if (pc.status !== "available") {
     playSound(300, 0.3)
     return
@@ -1227,6 +1270,7 @@ function cancelSelection() {
 
   selectedPCs = []
   isPrebookMode = false
+  occupiedPcContext = false;  // Reset context flag
 
   // Reset prebook mode UI
   const prebookButton = document.getElementById("prebookButton")
@@ -1236,6 +1280,7 @@ function cancelSelection() {
   prebookButton.classList.remove("active")
   prebookButton.textContent = "📅 Prebook"
   bookButton.textContent = "Book Now"
+  bookButton.style.display = "block";  // Re-enable book button
   prebookingSection.style.display = "none"
 
   document.getElementById("bookSection").classList.remove("show")

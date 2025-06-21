@@ -366,15 +366,15 @@ const createPrebooking = async (req, res) => {
         }
 
         const billedBy = req.user.email;
-
+        // 🛑 Check availability before proceeding
+        const scheduledStart = new Date(scheduledDate);
+        const scheduledEnd = new Date(scheduledStart.getTime() + duration * 60000);
         // Validate units based on type
         if (type === 'pc') {
             if (!pcUnits || !Array.isArray(pcUnits) || pcUnits.length === 0) {
                 return res.status(400).json({ message: 'pcUnits must be a non-empty array for type "pc"' });
             }
-            // 🛑 Check availability before proceeding
-            const scheduledStart = new Date(scheduledDate);
-            const scheduledEnd = new Date(scheduledStart.getTime() + duration * 60000);
+
 
             const todayBookings = await Prebook.find({
                 type: 'pc',
@@ -482,7 +482,7 @@ const createPrebooking = async (req, res) => {
                     conflicts,
                     availableUnits
                 });
-            }       
+            }
         } else {
             return res.status(400).json({ message: 'type must be either "pc" or "ps"' });
         }
