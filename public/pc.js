@@ -316,7 +316,7 @@ async function editPrebooking(prebookingId) {
 
     document.getElementById("editDuration").value = prebooking.duration
     document.getElementById("editPcUnits").value = prebooking.pcUnits || 0
-    document.getElementById("editPsUnits").value = prebooking.psUnits || 0
+    // document.getElementById("editPsUnits").value = prebooking.psUnits || 0
 
     document.getElementById("editPrebookingModal").classList.add("show")
     playSound(600, 0.2)
