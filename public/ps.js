@@ -26,6 +26,7 @@ const psPlayersMap = {}
 let selectedPS5s = []
 let snacksData = []
 let snacksCart = []
+let isPrebookMode = false
 let currentBillId = null
 let selectedBillInfo = null
 
@@ -557,8 +558,62 @@ async function fetchPSStatus(psId) {
                 }
             }
         }
+        // ✅ NEW: Fetch next booking for PS with debug
+        const prebookRes = await fetch("/api/prebook/", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        });
+        const prebookings = await prebookRes.json();
 
-        return { status, timeRemaining }
+        if (!Array.isArray(prebookings)) {
+            // console.warn("⚠️ prebookings is not an array:", prebookings);
+            return { status, timeRemaining, nextBookingTime: null };
+        }
+
+        const now = new Date();
+        // console.log(`🔍 Checking future bookings for PS${psId} at ${now.toISOString()}`);
+
+        // Filter for matching future bookings for this psId
+        const upcoming = prebookings
+            .filter(pb => {
+                const match =
+                    pb.type === "ps" &&
+                    Array.isArray(pb.psUnits) &&
+                    pb.psUnits.some(unit => String(unit.psId).trim() === `PS${String(psId).trim()}`) &&
+                    new Date(pb.scheduledDate) > now &&
+                    !pb.isConvertedToBill;
+
+                // if (match) {
+                //     // console.log(`✅ Matched prebooking ID: ${pb._id} | Scheduled: ${pb.scheduledDate}`);
+                //     pb.psUnits.forEach(unit => {
+                //         console.log(`  └─ 🎮 PS Unit: ${unit.psId}, Players: ${unit.players?.length ?? 0}, Duration: ${unit.duration} mins`);
+                //     });
+                // }
+
+                return match;
+            })
+            .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+        // console.log(`📊 Total upcoming PS bookings for today: ${upcoming.length}`);
+
+        // upcoming.forEach((pb, index) => {
+        //     console.log(`  #${index + 1}: ${pb.scheduledDate} by ${pb.name} (ID: ${pb._id})`);
+        // });
+
+        // if (upcoming.length > 0) {
+        //     console.log(`📅 Next booking for PS${psId}: ${upcoming[0].scheduledDate}`);
+        // } else {
+        //     console.log(`🆓 No upcoming booking found for PS${psId}`);
+        // }
+
+        const nextBookingTime = upcoming.length > 0 ? upcoming[0].scheduledDate : null;
+
+        return { status, timeRemaining, nextBookingTime };
+
+
     } catch (err) {
         console.error(`Error fetching time for PS5 ${psId}`, err)
         return { status: "available", timeRemaining: "Ready to Play" }
@@ -583,6 +638,7 @@ async function initializePSCards() {
             <div class="ps-specs">
                 PS5 • AMD Zen 2 • DualSense Controller • 4K HDR Gaming
             </div>
+            <div class="next-booking">Next booking: --</div>
             <div class="ps-time">Checking...</div>
             <div class="extend-buttons"></div>
             <div class="unfreeze-button"></div>
@@ -619,6 +675,18 @@ async function unfreezePS(formattedPsId) {
         alert("An unexpected error occurred.")
     }
 }
+function formatTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString(undefined, {
+        weekday: 'short',      // e.g., "Fri"
+        month: 'short',        // e.g., "Jun"
+        day: 'numeric',        // e.g., "21"
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+const activeCountdowns = {}; // Holds active countdown intervals per PC
 
 async function updatePSTimes() {
     for (const ps of psData) {
@@ -629,8 +697,8 @@ async function updatePSTimes() {
         const timeDiv = card.querySelector(".ps-time")
         const extendDiv = card.querySelector(".extend-buttons")
         const unfreeze = card.querySelector(".unfreeze-button")
-
-        const { status, timeRemaining } = await fetchPSStatus(ps.id)
+        const nextBookingDiv = card.querySelector(".next-booking")
+        const { status, timeRemaining, nextBookingTime } = await fetchPSStatus(ps.id)
 
         ps.status = status
         card.className = `ps-card ${status}`
@@ -639,6 +707,12 @@ async function updatePSTimes() {
         statusDiv.className = `ps-status ${status}`
         timeDiv.textContent = timeRemaining
         timeDiv.className = `ps-time ${status}`
+
+        if (nextBookingDiv) {
+            nextBookingDiv.textContent = nextBookingTime
+                ? `Next booking: ${formatTime(nextBookingTime)}`
+                : "Next booking: --"
+        }
 
         if (status === "occupied" || status === "ending-soon") {
             extendDiv.innerHTML = `
@@ -652,8 +726,50 @@ async function updatePSTimes() {
             extendDiv.innerHTML = ""
             unfreeze.innerHTML = ""
         }
-    }
 
+        // 15-minute warning logic
+        const countdownBoxId = `countdown-box-${ps.id}`
+        let countdownBox = card.querySelector(`#${countdownBoxId}`)
+        const fifteenMinutesMs = 15 * 60 * 1000
+        const now = new Date()
+
+        if (nextBookingTime) {
+            const nextTime = new Date(nextBookingTime)
+            const diff = nextTime - now
+
+            if (diff <= fifteenMinutesMs && diff > 0) {
+                if (!countdownBox) {
+                    countdownBox = document.createElement("div")
+                    countdownBox.id = countdownBoxId
+                    countdownBox.className = "countdown-box"
+                    card.appendChild(countdownBox)
+                }
+
+                if (!activeCountdowns[ps.id]) {
+                    activeCountdowns[ps.id] = setInterval(() => {
+                        const remaining = nextTime - new Date()
+                        if (remaining <= 0) {
+                            clearInterval(activeCountdowns[ps.id])
+                            delete activeCountdowns[ps.id]
+                            countdownBox.remove()
+                            return
+                        }
+
+                        const mins = Math.floor(remaining / 60000)
+                        const secs = Math.floor((remaining % 60000) / 1000)
+                        countdownBox.textContent = `⚠️ Booking in: ${mins}m ${secs}s`
+                    }, 1000)
+                }
+            } else {
+                // Remove countdown if not within 15 mins
+                if (countdownBox) countdownBox.remove()
+                if (activeCountdowns[ps.id]) {
+                    clearInterval(activeCountdowns[ps.id])
+                    delete activeCountdowns[ps.id]
+                }
+            }
+        }
+    }
     updateStatusCounts()
 }
 
@@ -689,7 +805,7 @@ function updateStatusCounts() {
     document.getElementById("endingSoonCount").textContent = endingSoon
     document.getElementById("occupiedCount").textContent = occupied
 }
-
+let flag = false;
 function selectPS(psId) {
     const ps = psData.find((p) => p.id === psId)
 
@@ -697,9 +813,44 @@ function selectPS(psId) {
         console.warn(`PS with ID ${psId} not found in psData.`)
         return
     }
+    if (ps.status === "occupied" || ps.status === "ending-soon" || ps.status === "payment-due") {
+        playSound(500, 0.2);
 
+        // Set context flag
+        // occupiedPcContext = true;
+
+        isPrebookMode = true;
+        flag = true;
+        // Clear previous selection and select only this PC
+        selectedPS = [psId];
+        updateSelectedPSsList();
+
+        // Show booking section with prebook mode
+        document.getElementById("bookSection").classList.add("show");
+
+        // Force prebook mode UI
+        const prebookButton = document.getElementById("prebookButton");
+        const bookButton = document.getElementById("bookButton");
+        const prebookingSection = document.getElementById("prebookingSection");
+
+        prebookButton.classList.add("active");
+        prebookButton.textContent = "📅 Cancel Prebook";
+        bookButton.textContent = "Create Prebooking";
+        prebookingSection.style.display = "block";
+
+        // Hide regular booking button
+        bookButton.style.display = "block";
+
+        // Set minimum date to current date and time
+        const now = new Date();
+        const minDateTime = now.toISOString().slice(0, 16);
+        document.getElementById("scheduledDateTime").min = minDateTime;
+
+        return;
+    }
     if (ps.status !== "available") {
         playSound(300, 0.3)
+        // flag = false;
         return
     }
 
@@ -755,6 +906,398 @@ function updateSelectedPSsList() {
     })
 }
 
+async function updatePrebookingCount() {
+    try {
+        const response = await fetch("/api/prebook", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (response.ok) {
+            const prebookings = await response.json()
+            // ✅ Filter only PS type bookings
+            const psBookings = prebookings.filter(p => p.type === 'ps');
+
+            const count = psBookings.length
+
+            // Update header button count
+            const headerCount = document.getElementById("prebookingCount")
+            if (headerCount) {
+                headerCount.textContent = count
+            }
+
+            // Update status card count
+            const statusCount = document.getElementById("prebookingStatusCount")
+            if (statusCount) {
+                statusCount.textContent = count
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching prebooking count:", error)
+    }
+}
+
+// Prebooking Management Functions
+async function openPrebookingModal() {
+    try {
+        const response = await fetch("/api/prebook", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch prebookings")
+        }
+
+        const prebookings = await response.json()
+        const psBookings = prebookings.filter(p => p.type === 'ps');
+
+        displayPrebookings(psBookings)
+        document.getElementById("prebookingModal").classList.add("show")
+        playSound(600, 0.2)
+    } catch (error) {
+        console.error("Error fetching prebookings:", error)
+        alert("Failed to load prebookings. Please try again.")
+    }
+}
+function togglePlayerDetails(id) {
+    const el = document.getElementById(id);
+    if (el.style.display === "none") {
+        el.style.display = "block";
+    } else {
+        el.style.display = "none";
+    }
+}
+
+function displayPrebookings(prebookings) {
+    const prebookingList = document.getElementById("prebookingList");
+
+    if (prebookings.length === 0) {
+        prebookingList.innerHTML =
+            '<div style="text-align: center; opacity: 0.6; padding: 40px;">No prebookings found</div>';
+        return;
+    }
+
+    prebookingList.innerHTML = prebookings
+        .map((prebooking, index) => {
+            const scheduledDate = new Date(prebooking.scheduledDate);
+            const formattedDate = scheduledDate.toLocaleString("en-IN", {
+                timeZone: "Asia/Kolkata",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+
+            const hours = Math.floor(prebooking.duration / 60);
+            const mins = prebooking.duration % 60;
+            let durationStr = "";
+            if (hours > 0) durationStr += `${hours}h `;
+            if (mins > 0) durationStr += `${mins}m`;
+
+            let unitsHtml = "";
+
+            if (prebooking.type === "pc") {
+                unitsHtml = prebooking.pcUnits
+                    .map((unit, i) => `PC${unit}`)
+                    .join(", ");
+            } else {
+                unitsHtml = prebooking.psUnits
+                    .map((unit, uIndex) => {
+                        const playerDetails = unit.players
+                            .map(
+                                (p) =>
+                                    `<div class="player-line">Player ${p.playerNo} - ${p.duration} min</div>`
+                            )
+                            .join("");
+
+                        const toggleId = `playerToggle-${index}-${uIndex}`;
+
+                        return `
+                            <div class="ps-unit">
+                                <div><strong>${unit.psId}</strong> — ${unit.duration} min</div>
+                                <button onclick="togglePlayerDetails('${toggleId}')" class="show-players-btn">👥 Show Players</button>
+                                <div id="${toggleId}" class="player-details" style="display: none; margin-top: 4px;">
+                                    ${playerDetails}
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join("");
+            }
+
+            return `
+            <div class="prebooking-item">
+                <div class="prebooking-info">
+                    <div class="prebooking-detail"><div class="prebooking-label">Customer</div><div class="prebooking-value">${prebooking.name}</div></div>
+                    <div class="prebooking-detail"><div class="prebooking-label">Contact</div><div class="prebooking-value">${prebooking.contactNo}</div></div>
+                    <div class="prebooking-detail"><div class="prebooking-label">Scheduled Date</div><div class="prebooking-value">${formattedDate}</div></div>
+                    <div class="prebooking-detail"><div class="prebooking-label">Duration</div><div class="prebooking-value">${durationStr.trim()}</div></div>
+                    <div class="prebooking-detail"><div class="prebooking-label">Type</div><div class="prebooking-value">${prebooking.type.toUpperCase()}</div></div>
+                    <div class="prebooking-detail">
+                        <div class="prebooking-label">Units</div>
+                        <div class="prebooking-value">${unitsHtml}</div>
+                    </div>
+                </div>
+                <div class="prebooking-actions">
+                    <button class="edit-prebooking-btn" onclick="editPrebooking('${prebooking._id}')">✏️ Edit</button>
+                    <button class="delete-prebooking-btn" onclick="deletePrebooking('${prebooking._id}')">🗑️ Delete</button>
+                </div>
+            </div>
+            `;
+        })
+        .join("");
+}
+
+async function deletePrebooking(prebookingId) {
+    if (!confirm("Are you sure you want to delete this prebooking?")) {
+        return
+    }
+
+    try {
+        const response = await fetch(`/api/prebook/${prebookingId}`, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || "Failed to delete prebooking")
+        }
+
+        playSound(400, 0.3)
+        alert("Prebooking deleted successfully!")
+        openPrebookingModal() // Refresh the list
+        updatePrebookingCount() // Update counts
+    } catch (error) {
+        console.error("Error deleting prebooking:", error)
+        alert("Failed to delete prebooking. Please try again.")
+    }
+}
+
+function closePrebookingModal() {
+    document.getElementById("prebookingModal").classList.remove("show")
+    playSound(400, 0.1)
+}
+
+async function editPrebooking(prebookingId) {
+    try {
+        const response = await fetch("/api/prebook", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch prebooking details");
+        }
+
+        const prebookings = await response.json();
+        const prebooking = prebookings.find((p) => p._id === prebookingId);
+
+        if (!prebooking) {
+            alert("Prebooking not found");
+            return;
+        }
+
+        currentEditingPrebookingId = prebookingId;
+
+        // Populate main fields
+        document.getElementById("editName").value = prebooking.name;
+        document.getElementById("editContactNo").value = prebooking.contactNo;
+
+        const scheduledDate = new Date(prebooking.scheduledDate);
+
+        // Convert to IST manually (IST = UTC + 5:30)
+        const istOffsetMs = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+        const istDate = new Date(scheduledDate.getTime() + istOffsetMs);
+
+        // Format as "YYYY-MM-DDTHH:MM" for input type="datetime-local"
+        const formattedDateTime = istDate.toISOString().slice(0, 16);
+        document.getElementById("editScheduledDate").value = formattedDateTime;
+
+
+        document.getElementById("editDuration").value = prebooking.duration;
+
+        // Populate PS units and player inputs
+        const container = document.getElementById("editPsUnitsContainer");
+        container.innerHTML = prebooking.psUnits
+            .map((unit, index) => {
+                const playersHTML = unit.players
+                    .map(
+                        (player) => `
+                        <div class="form-subgroup">
+                            <label>Player ${player.playerNo} Duration (min)</label>
+                            <input type="number"
+                                class="form-input player-duration-input"
+                                data-psindex="${index}"
+                                data-player="${player.playerNo}"
+                                value="${player.duration}"
+                                min="10"
+                                step="10"
+                            />
+                        </div>`
+                    )
+                    .join("");
+
+                return `
+                    <div class="form-group ps-unit-edit-block">
+                        <label class="form-label">PS Unit: ${unit.psId}</label>
+                        ${playersHTML}
+                    </div>`;
+            })
+            .join("");
+
+        // Show modal
+        document.getElementById("editPrebookingModal").classList.add("show");
+        playSound(600, 0.2);
+    } catch (error) {
+        console.error("Error loading prebooking for edit:", error);
+        alert("Failed to load prebooking details. Please try again.");
+    }
+}
+
+function closeEditPrebookingModal() {
+    document.getElementById("editPrebookingModal").classList.remove("show")
+    currentEditingPrebookingId = null
+    playSound(400, 0.1)
+}
+
+async function saveEditedPrebooking() {
+    if (!currentEditingPrebookingId) {
+        alert("No prebooking selected for editing");
+        return;
+    }
+
+    const name = document.getElementById("editName").value.trim();
+    const contactNo = document.getElementById("editContactNo").value.trim();
+    const scheduledDate = document.getElementById("editScheduledDate").value;
+    const duration = Number.parseInt(document.getElementById("editDuration").value);
+
+    if (!name || !contactNo || !scheduledDate || !duration) {
+        alert("Please fill in all required fields");
+        return;
+    }
+
+    // Rebuild psUnits from form fields
+    const psUnitsMap = {};
+    document.querySelectorAll(".player-duration-input").forEach((input) => {
+        const psIndex = input.dataset.psindex;
+        const playerNo = parseInt(input.dataset.player, 10);
+        const playerDuration = parseInt(input.value, 10);
+
+        if (!psUnitsMap[psIndex]) {
+            psUnitsMap[psIndex] = {
+                psId: `PS${parseInt(psIndex) + 1}`, // Or store original psId via data attr if needed
+                duration: duration,
+                players: [],
+            };
+        }
+
+        psUnitsMap[psIndex].players.push({
+            playerNo,
+            duration: playerDuration,
+        });
+    });
+
+    const psUnits = Object.values(psUnitsMap);
+
+    if (psUnits.length === 0) {
+        alert("Please specify at least one PS unit and player details");
+        return;
+    }
+
+    const payload = {
+        name,
+        contactNo,
+        scheduledDate,
+        duration,
+        type: "ps",
+        pcUnits: [], // Since it's PS only
+        psUnits,
+        billedBy: "Admin",
+    };
+
+    try {
+        const response = await fetch(`/api/prebook/${currentEditingPrebookingId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || "Failed to update prebooking");
+        }
+
+        playSound(800, 0.3);
+        alert("Prebooking updated successfully!");
+        closeEditPrebookingModal();
+        openPrebookingModal(); // Refresh the list
+        updatePrebookingCount(); // Update counter
+    } catch (error) {
+        console.error("Error updating prebooking:", error);
+        alert("Failed to update prebooking. Please try again.");
+    }
+}
+
+async function convertDuePSPrebookings() {
+    try {
+        const response = await fetch("/api/prebook/convert-due", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+
+            // Filter only PS bills
+            const psBills = result.bills?.filter(b => b.type === 'ps') || [];
+
+            if (psBills.length > 0) {
+                console.log(`🎮 Converted ${psBills.length} due PS prebookings to bills`);
+
+                // Update UI components specific to PS
+                await updateUnpaidBills();       // Optional: If same list
+                await updatePrebookingCount();   // Optional: If shows PS count
+
+                // Show toast/alert or log
+                showNotification(`${psBills.length} PS prebooking(s) converted to bills`, "success");
+            }
+        } else {
+            console.warn("Failed to convert due PS prebookings:", await response.text());
+        }
+    } catch (error) {
+        console.error("Error in auto-convert PS prebookings:", error);
+    }
+}
+
+// Start auto-conversion of due PS prebookings every 60 seconds
+setInterval(convertDuePSPrebookings, 30000); // Every 30 seconds
+
+// Run once immediately on page load
+convertDuePSPrebookings();
+
+
 function removeSelectedPS(psId) {
     selectedPS5s = selectedPS5s.filter((id) => id !== psId)
     document.querySelectorAll(".ps-card").forEach((card) => {
@@ -775,7 +1318,7 @@ function cancelSelection() {
     document.querySelectorAll(".ps-card").forEach((card) => {
         card.classList.remove("selected")
     })
-
+    isPrebookMode = false
     selectedPS5s = []
     document.getElementById("bookSection").classList.remove("show")
 }
@@ -799,59 +1342,129 @@ async function bookSelectedPSs() {
         players: psPlayersMap[psId] || 1,
     }))
 
-    try {
-        const response = await fetch("/api/ps/book", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ bookings }),
-        })
+    const psUnits = selectedPS5s.map((psId) => {
+        const playerCount = psPlayersMap[psId] || 1;
 
-        const result = await response.json()
+        const players = Array.from({ length: playerCount }, (_, i) => ({
+            playerNo: i + 1,
+            duration: duration, // each player has same duration; customize if needed
+        }));
 
-        if (!response.ok) {
-            alert(`Booking failed: ${result.message}`)
+        return {
+            psId: `PS${psId}`,
+            duration,
+            players,
+        };
+    });
+
+    if (isPrebookMode) {
+        // Handle prebooking
+        const scheduledDateTime = document.getElementById("scheduledDateTime").value
+
+        if (!scheduledDateTime) {
+            alert("Please select a scheduled date and time for prebooking")
+            bookButton.disabled = false
             return
         }
 
-        const billPayload = {
-            userName,
-            contactNo: contactNumber,
-            psUnits: bookings,
-            type: "ps",
+        try {
+            const response = await fetch("/api/prebook/create", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    type: "ps",
+                    pcUnits: [], // empty for PS bookings
+                    psUnits,
+                    name: userName,
+                    contactNo: contactNumber,
+                    scheduledDate: scheduledDateTime,
+                    duration,
+                    billedBy: "Admin",
+                }),
+            });
+
+
+            const result = await response.json()
+
+            if (!response.ok) {
+                alert(`Prebooking failed: ${result.message}`)
+                return
+            }
+
+            playSound(800, 0.3)
+            alert("Prebooking created successfully!")
+
+            // Reset form
+            document.getElementById("userName").value = ""
+            document.getElementById("contactNumber").value = ""
+            document.getElementById("hoursSelect").value = "1"
+            document.getElementById("scheduledDateTime").value = ""
+
+            cancelSelection()
+            isPrebookMode = false
+            updatePrebookingCount() // Update prebooking counts
+        } catch (error) {
+            console.error("Prebooking error:", error)
+            alert("Prebooking failed. Please try again.")
         }
+    } else {
+        try {
+            const response = await fetch("/api/ps/book", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ bookings }),
+            })
 
-        const billResponse = await fetch("/api/bills/create", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify(billPayload),
-        })
+            const result = await response.json()
 
-        const billResult = await billResponse.json()
+            if (!response.ok) {
+                alert(`Booking failed: ${result.message}`)
+                return
+            }
 
-        if (!billResponse.ok) {
-            alert(`Billing failed: ${billResult.message}`)
-            return
+            const billPayload = {
+                userName,
+                contactNo: contactNumber,
+                psUnits: bookings,
+                type: "ps",
+            }
+
+            const billResponse = await fetch("/api/bills/create", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify(billPayload),
+            })
+
+            const billResult = await billResponse.json()
+
+            if (!billResponse.ok) {
+                alert(`Billing failed: ${billResult.message}`)
+                return
+            }
+
+            playSound(800, 0.3)
+
+            await updateUnpaidBills()
+            await initializePSCards()
+            cancelSelection()
+
+            document.getElementById("userName").value = ""
+            document.getElementById("contactNumber").value = ""
+            document.getElementById("hoursSelect").value = "1"
+        } catch (error) {
+            console.error("Booking error:", error)
+            alert("Booking failed. Please try again.")
+        } finally {
+            setTimeout(() => {
+                bookButton.disabled = false; // Re-enable after 5 seconds
+            }, 5000);
         }
-
-        playSound(800, 0.3)
-
-        await updateUnpaidBills()
-        await initializePSCards()
-        cancelSelection()
-
-        document.getElementById("userName").value = ""
-        document.getElementById("contactNumber").value = ""
-        document.getElementById("hoursSelect").value = "1"
-    } catch (error) {
-        console.error("Booking error:", error)
-        alert("Booking failed. Please try again.")
-    } finally {
-        setTimeout(() => {
-            bookButton.disabled = false; // Re-enable after 5 seconds
-        }, 5000);
     }
 }
 
@@ -1050,14 +1663,14 @@ async function showPaymentModal(billId) {
             }).join("<br>") || "Player 1: Full duration"
 
             return `
-        <div style="margin-bottom: 8px;">
-            <strong>${ps.psId}</strong> (${durationStr})
-            <button onclick="togglePlayers('${playersDetailId}')" style="margin-left: 10px; font-size: 12px;">Show/Hide Players</button>
-            <div id="${playersDetailId}" style="margin-left: 15px; margin-top: 5px; font-size: 14px; color: #666; display: none;">
-                ${playersDetail}
+            <div style="margin-bottom: 8px;">
+                <strong>${ps.psId}</strong> (${durationStr})
+                <button onclick="togglePlayers('${playersDetailId}')" style="margin-left: 10px; font-size: 12px;">Show/Hide Players</button>
+                <div id="${playersDetailId}" style="margin-left: 15px; margin-top: 5px; font-size: 14px; color: #666; display: none;">
+                    ${playersDetail}
+                </div>
             </div>
-        </div>
-    `
+        `
         }).join("")
 
 
@@ -1088,66 +1701,76 @@ async function showPaymentModal(billId) {
                 })
                 .join("")
             snacksSection = `
-                <div><strong>Snacks:</strong></div>
-                <div style="margin-left: 15px;">${snacksList}</div>
-            `
+                    <div><strong>Snacks:</strong></div>
+                    <div style="margin-left: 15px;">${snacksList}</div>
+                `
         }
 
         let amountBreakdown = ""
         if (bill.remainingAmt > 0) {
             amountBreakdown = `
-                <div><strong>Paid Amount:</strong> ₹${bill.paidAmt?.toFixed(2) || 0}</div>
-                <div><strong>Remaining Amount:</strong> ₹${bill.remainingAmt.toFixed(2)}</div>
-            `
+                    <div><strong>Paid Amount:</strong> ₹${bill.paidAmt?.toFixed(2) || 0}</div>
+                    <div><strong>Remaining Amount:</strong> ₹${bill.remainingAmt.toFixed(2)}</div>
+                `
         }
 
         const paymentSummary = document.getElementById("paymentSummary")
         const originalAmount = bill.amount.toFixed(2)
 
         paymentSummary.innerHTML = `
-            <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
-            <div><strong>Customer Name:</strong> ${bill.userName}</div>
-            <div><strong>Contact No:</strong> ${bill.contactNo}</div>
-            <div><strong>PS Used:</strong></div>
-            <div style="margin-left: 15px;">${psUsageList}</div>
-            ${snacksSection}
-            ${amountBreakdown}
+               <div style="margin-bottom: 8px;"><strong>Booking Time:</strong> ${formattedBookingTime}</div>
+<div style="margin-bottom: 8px;"><strong>Customer:</strong> ${bill.userName}</div>
+<div style="margin-bottom: 8px;"><strong>Contact:</strong> ${bill.contactNo}</div>
+                <div><strong>PS Used:</strong></div>
+<div style="margin-left: 15px; margin-bottom: 8px;">${psUsageList}</div>
+                ${snacksSection}
+                ${amountBreakdown}
 
-            <div id="walletSection" style="margin: 15px 0;">
-                <label>
-                    <input type="checkbox" id="useWalletCheckbox" />
-                    <strong>Use Wallet Credit</strong>
-                </label>
-                <div id="walletCreditDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
-            </div>
-
-            <div id="loyaltySection" style="margin: 15px 0;">
-            <label>
+                <!-- Wallet + Loyalty Side-by-Side -->
+<div style="display: flex; justify-content: space-between; gap: 10px; margin: 10px 0;">
+    <div style="flex: 1;">
+        <label style="font-size: 14px;">
+            <input type="checkbox" id="useWalletCheckbox" />
+            Wallet
+        </label>
+        <div id="walletCreditDisplay" style="font-size: 13px; color: #555;"></div>
+    </div>
+    <div style="flex: 1;">
+        <label style="font-size: 14px;">
             <input type="checkbox" id="useLoyaltyCheckbox" />
-            <strong>Use Loyalty Points</strong>
-            </label>
-            <div id="loyaltyPointsDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
-            </div>
-            
-            <div style="margin-top: 15px;">
-                <label><strong>Discount (₹):</strong></label><br/>
-                <input type="number" id="discountInput" min="0" value="0" style="padding: 5px; width: 100%; margin-bottom: 15px;" />
-            </div>
+            Loyalty
+        </label>
+        <div id="loyaltyPointsDisplay" style="font-size: 13px; color: #555;"></div>
+    </div>
+</div>
+                
+             <!-- Discount -->
+<div style="margin-bottom: 10px;">
+    <label style="font-size: 14px;"><strong>Discount (₹):</strong></label>
+    <input type="number" id="discountInput" min="0" value="0" 
+        style="padding: 6px 10px; width: 100%; font-size: 14px; border-radius: 6px;" />
+</div>
 
-            <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                    <label><strong>Cash Payment (₹):</strong></label><br/>
-                    <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%;" />
-                </div>
-                <div style="flex: 1;">
-                    <label><strong>UPI Payment (₹):</strong></label><br/>
-                    <input type="number" id="upiInput" min="0" required style="padding: 5px; width: 100%;" />
-                </div>
-            </div> 
-            <div class="payment-total" style="margin-top: 10px;">
-                <strong>Total Amount:</strong> ₹<span id="finalAmount">${originalAmount}</span>
-            </div>
-        `
+<!-- Cash & UPI side-by-side -->
+<div style="display: flex; gap: 10px;">
+    <div style="flex: 1;">
+        <label style="font-size: 14px;"><strong>Cash (₹):</strong></label>
+        <input type="number" id="cashInput" min="0" required 
+            style="padding: 6px 10px; width: 100%; font-size: 14px; border-radius: 6px;" />
+    </div>
+    <div style="flex: 1;">
+        <label style="font-size: 14px;"><strong>UPI (₹):</strong></label>
+        <input type="number" id="upiInput" min="0" required 
+            style="padding: 6px 10px; width: 100%; font-size: 14px; border-radius: 6px;" />
+    </div>
+</div>
+
+
+<!-- Final Total -->
+<div class="payment-total" style="margin-top: 12px; font-size: 16px;">
+    <strong>Total:</strong> ₹<span id="finalAmount">${originalAmount}</span>
+</div>
+            `
 
         const discountInput = document.getElementById("discountInput")
         const finalAmountDisplay = document.getElementById("finalAmount")
@@ -1301,7 +1924,10 @@ createParticles()
 setupMenu()
 initializePSCards()
 updateUnpaidBills()
+updatePrebookingCount() // Initialize prebooking count
 
+// Update prebooking count periodically
+setInterval(updatePrebookingCount, 30000)
 // Keyboard shortcuts
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -1329,6 +1955,8 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("click", (e) => {
     const snacksPanel = document.getElementById("snacksPanel")
     const billSelectionModal = document.getElementById("billSelectionModal")
+    const prebookingModal = document.getElementById("prebookingModal")
+    const editPrebookingModal = document.getElementById("editPrebookingModal")
 
     if (!snacksPanel.contains(e.target) && !e.target.closest(".add-snacks-btn")) {
         if (snacksPanel.classList.contains("open")) {
@@ -1342,4 +1970,42 @@ document.addEventListener("click", (e) => {
     ) {
         closeBillSelection()
     }
+
+    if (
+        !prebookingModal.querySelector(".prebooking-content").contains(e.target) &&
+        prebookingModal.classList.contains("show")
+    ) {
+        closePrebookingModal()
+    }
+
+    if (
+        !editPrebookingModal.querySelector(".edit-prebooking-content").contains(e.target) &&
+        editPrebookingModal.classList.contains("show")
+    ) {
+        closeEditPrebookingModal()
+    }
 })
+
+function togglePrebookMode() {
+    // Prevent toggling in occupied context
+    // if (occupiedPcContext) {
+    //   playSound(300, 0.1);
+    //   isPrebookMode = true
+    //   // return;
+    // }
+
+    isPrebookMode = true;
+    const prebookButton = document.getElementById("prebookButton")
+    const bookButton = document.getElementById("bookButton")
+    const prebookingSection = document.getElementById("prebookingSection")
+
+    if (!flag) {
+        prebookButton.classList.remove("active")
+        prebookButton.textContent = "📅 Prebook"
+        bookButton.textContent = "Book Now"
+        prebookingSection.style.display = "block"
+    }
+
+    flag = false;
+    playSound(600, 0.2)
+}

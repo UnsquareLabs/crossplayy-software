@@ -3,7 +3,7 @@ const EditLog = require('../models/editLogs.models');
 
 const logBillEdit = async (req, res) => {
     try {
-        // console.log("sssssssssssssssssssssssssssssssssssssssssssss")
+
         console.log('Received request to log bill edit');
 
         const { billId } = req.body;
@@ -32,6 +32,9 @@ const logBillEdit = async (req, res) => {
         let editLog = await EditLog.findOne({ billId });
         console.log('Existing editLog found:', !!editLog);
 
+        console.log('Actual bill loyaltyPoints:', bill.toObject().loyaltyPoints);
+        console.log("DEBUG loyaltyPoints:", bill.loyaltyPoints);
+
         // Prepare new version entry
         const newVersion = {
             version: 1,
@@ -39,6 +42,7 @@ const logBillEdit = async (req, res) => {
             cash: bill.cash,
             UPI: bill.upi,
             wallet: bill.wallet,
+            loyaltyPoints: bill.loyaltyPoints,
             amount: bill.amount,
             pcUnits: bill.pcUnits,
             psUnits: bill.psUnits,

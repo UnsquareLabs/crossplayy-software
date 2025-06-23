@@ -310,9 +310,16 @@ async function editPrebooking(prebookingId) {
     document.getElementById("editContactNo").value = prebooking.contactNo
 
     // Format date for datetime-local input
-    const scheduledDate = new Date(prebooking.scheduledDate)
-    const formattedDateTime = scheduledDate.toISOString().slice(0, 16)
-    document.getElementById("editScheduledDate").value = formattedDateTime
+    const scheduledDate = new Date(prebooking.scheduledDate);
+
+    // Convert to IST manually (IST = UTC + 5:30)
+    const istOffsetMs = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+    const istDate = new Date(scheduledDate.getTime() + istOffsetMs);
+
+    // Format as "YYYY-MM-DDTHH:MM" for input type="datetime-local"
+    const formattedDateTime = istDate.toISOString().slice(0, 16);
+    document.getElementById("editScheduledDate").value = formattedDateTime;
+
 
     document.getElementById("editDuration").value = prebooking.duration
     document.getElementById("editPcUnits").value = prebooking.pcUnits || 0
@@ -343,7 +350,7 @@ async function saveEditedPrebooking() {
   const scheduledDate = document.getElementById("editScheduledDate").value
   const duration = Number.parseInt(document.getElementById("editDuration").value)
   const pcUnits = Number.parseInt(document.getElementById("editPcUnits").value) || 0
-  const psUnits = Number.parseInt(document.getElementById("editPsUnits").value) || 0
+  const psUnits = 0
 
   if (!name || !contactNo || !scheduledDate || !duration) {
     alert("Please fill in all required fields")
@@ -529,17 +536,7 @@ function togglePrebookMode() {
   const bookButton = document.getElementById("bookButton")
   const prebookingSection = document.getElementById("prebookingSection")
 
-  if (flag) {
-    prebookButton.classList.add("active")
-    prebookButton.textContent = "📅 Cancel Prebook"
-    bookButton.textContent = "Create Prebooking"
-    prebookingSection.style.display = "block"
-
-    // Set minimum date to current date and time
-    const now = new Date()
-    const minDateTime = now.toISOString().slice(0, 16)
-    document.getElementById("scheduledDateTime").min = minDateTime
-  } else {
+  if (!flag) {
     prebookButton.classList.remove("active")
     prebookButton.textContent = "📅 Prebook"
     bookButton.textContent = "Book Now"
@@ -1047,7 +1044,7 @@ async function initializePCCards() {
   }
 
   updatePCTimes()
-  setInterval(updatePCTimes, 60000)
+  setInterval(updatePCTimes, 10000)
 }
 
 async function unfreezePC(formattedPcId) {
@@ -1074,6 +1071,7 @@ async function unfreezePC(formattedPcId) {
     alert("An unexpected error occurred.")
   }
 }
+const activeCountdowns = {}; // Holds active countdown intervals per PC
 
 async function updatePCTimes() {
   for (const pc of pcData) {
@@ -1112,8 +1110,50 @@ async function updatePCTimes() {
       extendDiv.innerHTML = ""
       unfreeze.innerHTML = ""
     }
-  }
 
+    // 15-minute warning logic
+    const countdownBoxId = `countdown-box-${pc.id}`
+    let countdownBox = card.querySelector(`#${countdownBoxId}`)
+    const fifteenMinutesMs = 15 * 60 * 1000
+    const now = new Date()
+
+    if (nextBookingTime) {
+      const nextTime = new Date(nextBookingTime)
+      const diff = nextTime - now
+
+      if (diff <= fifteenMinutesMs && diff > 0) {
+        if (!countdownBox) {
+          countdownBox = document.createElement("div")
+          countdownBox.id = countdownBoxId
+          countdownBox.className = "countdown-box"
+          card.appendChild(countdownBox)
+        }
+
+        if (!activeCountdowns[pc.id]) {
+          activeCountdowns[pc.id] = setInterval(() => {
+            const remaining = nextTime - new Date()
+            if (remaining <= 0) {
+              clearInterval(activeCountdowns[pc.id])
+              delete activeCountdowns[pc.id]
+              countdownBox.remove()
+              return
+            }
+
+            const mins = Math.floor(remaining / 60000)
+            const secs = Math.floor((remaining % 60000) / 1000)
+            countdownBox.textContent = `⚠️ Booking in: ${mins}m ${secs}s`
+          }, 1000)
+        }
+      } else {
+        // Remove countdown if not within 15 mins
+        if (countdownBox) countdownBox.remove()
+        if (activeCountdowns[pc.id]) {
+          clearInterval(activeCountdowns[pc.id])
+          delete activeCountdowns[pc.id]
+        }
+      }
+    }
+  }
   updateStatusCounts()
 }
 
@@ -1175,7 +1215,7 @@ function selectPC(pcId) {
     playSound(500, 0.2);
 
     // Set context flag
-    occupiedPcContext = true;
+    // occupiedPcContext = true;
 
     isPrebookMode = true;
     flag = true;
@@ -1270,7 +1310,7 @@ function cancelSelection() {
 
   selectedPCs = []
   isPrebookMode = false
-  occupiedPcContext = false;  // Reset context flag
+  // occupiedPcContext = false;  // Reset context flag
 
   // Reset prebook mode UI
   const prebookButton = document.getElementById("prebookButton")

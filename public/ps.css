@@ -2129,3 +2129,44 @@ body {
         height: 30px;
     }
 }
+
+.ps-unit {
+    margin-bottom: 6px;
+    padding: 4px;
+    background-color: #f8f8f8;
+    border-radius: 6px;
+}
+
+.show-players-btn {
+    margin-top: 4px;
+    background: #eee;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+.player-line {
+    margin-left: 10px;
+    font-size: 13px;
+    color: #333;
+}
+
+.next-booking {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 4px;
+}
+
+.countdown-box {
+    margin-top: 10px;
+    padding: 10px;
+    background: #fffbdd;
+    border: 2px solid #facc15;
+    color: #92400e;
+    font-weight: bold;
+    font-size: 1.2rem;
+    text-align: center;
+    border-radius: 8px;
+}

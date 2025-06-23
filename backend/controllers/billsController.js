@@ -544,28 +544,44 @@ const editBill = async (req, res) => {
                     return res.status(400).json({ message: `Each psUnit must have at least one player.` });
                 }
 
+                // Initialize timeline: each minute tracks how many players are active
+                const timeline = new Array(duration).fill(0);
+
                 for (const player of players) {
-                    const playerDurationHours = (player.duration || 0) / 60;
+                    const playerDuration = player.duration || 0;
+                    const end = Math.min(duration, playerDuration);
+                    for (let i = 0; i < end; i++) {
+                        timeline[i]++;
+                    }
+                }
 
-                    if (playerDurationHours <= 0) continue;
+                // Count how many minutes had N players active
+                const timeCount = {}; // e.g., { '1': 30, '2': 20 }
+                for (const count of timeline) {
+                    if (count === 0) continue;
+                    timeCount[count] = (timeCount[count] || 0) + 1;
+                }
 
+                // Compute total using accurate per-player-count pricing
+                for (const [playerCountStr, minutes] of Object.entries(timeCount)) {
+                    const playersActive = parseInt(playerCountStr);
+                    const hours = minutes / 60;
                     let ratePerHour;
 
                     if (hourIST < 22) {
-                        // Daytime pricing
-                        switch (players.length) {
-                            case 4: ratePerHour = 45; break;
-                            case 3: ratePerHour = 50; break;
-                            case 2: ratePerHour = 55; break;
+                        switch (playersActive) {
                             case 1: ratePerHour = 100; break;
+                            case 2: ratePerHour = 55; break;
+                            case 3: ratePerHour = 50; break;
+                            case 4: ratePerHour = 45; break;
                             default: ratePerHour = 40;
                         }
                     } else {
-                        // Nighttime pricing (after 10 PM)
+                        // Night pricing
                         ratePerHour = 120;
                     }
 
-                    totalAmount += playerDurationHours * ratePerHour;
+                    totalAmount += ratePerHour * hours * playersActive; // playersActive because each player pays per person
                 }
             }
         } else {
@@ -606,7 +622,7 @@ const editBill = async (req, res) => {
         customer.loyaltyPoints -= loyaltyPoints;
 
         // ✅ Add new loyalty based on (amount - loyalty used)
-        const earned = calculateLoyaltyPoints(totalAmount - loyaltyPoints);
+        const earned = calculateLoyaltyPoints(totalAmount);
         customer.loyaltyPoints += earned;
         await customer.save();
 
