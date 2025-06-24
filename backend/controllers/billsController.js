@@ -449,7 +449,7 @@ const editBill = async (req, res) => {
         customer.loyaltyPoints -= prevLoyaltyEarned;
 
         // Step 1: Restore old balance
-        const prevWallet = bill.walletCredit || 0;
+        const prevWallet = bill.wallet || 0;
         const prevLoyalty = bill.loyaltyPoints || 0;
 
         customer.walletCredit += prevWallet;
