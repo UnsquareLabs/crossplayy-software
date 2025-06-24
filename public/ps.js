@@ -1765,7 +1765,7 @@ async function showPaymentModal(billId) {
     </div>
 </div>
 
-
+ 
 <!-- Final Total -->
 <div class="payment-total" style="margin-top: 12px; font-size: 16px;">
     <strong>Total:</strong> ₹<span id="finalAmount">${originalAmount}</span>

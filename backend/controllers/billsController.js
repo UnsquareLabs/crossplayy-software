@@ -360,7 +360,36 @@ const markBillAsPaid = async (req, res) => {
             return res.status(200).json({ message: 'Bill marked as paid using loyalty points', bill: updatedBill });
         }
 
-        // Case 3: Combination of wallet + loyalty + upi + cash
+        // ✅ Case 3: Combined wallet + loyalty can fully pay (prefer wallet first)
+        if ((wallet + loyalty) >= effectivePaid) {
+            let usedWallet = Math.min(wallet, effectivePaid);
+            let usedLoyalty = effectivePaid - usedWallet;
+
+            console.log(`✅ Paying with wallet+loyalty combo: Used wallet ₹${usedWallet}, Used loyalty ₹${usedLoyalty}`);
+
+            if (foundCustomer) {
+                foundCustomer.walletCredit -= usedWallet;
+                foundCustomer.loyaltyPoints -= usedLoyalty;
+                await foundCustomer.save();
+            }
+
+            bill.status = true;
+            bill.wallet += usedWallet;
+            bill.loyaltyPoints += usedLoyalty;
+            bill.discount += discount;
+            bill.paidAmt += effectivePaid;
+            bill.remainingAmt = 0;
+            bill.snacksTotal = 0;
+            bill.snacks = bill.snacks.map(snack => ({
+                ...snack.toObject(),
+                paidFor: true
+            }));
+
+            const updatedBill = await bill.save();
+            return res.status(200).json({ message: 'Bill paid using combined wallet and loyalty', bill: updatedBill });
+        }
+
+        // Case 4: Combination of wallet + loyalty + upi + cash
         const totalPaid = cash + upi + wallet + loyalty;
 
         if (totalPaid !== effectivePaid) {
@@ -440,29 +469,40 @@ const editBill = async (req, res) => {
         }
 
         // ✅ Now resolve customer
+        console.log('Fetching customer for contactNo:', bill.contactNo);
         const contactNo = bill.contactNo;
         const customer = await Customer.findOne({ contactNo });
+
+        if (!customer) {
+            console.log('Customer not found.');
+            return res.status(404).json({ message: 'Customer not found.' });
+        }
 
         // Step 0: Reverse loyalty from old bill total
         const prevTotalAmount = bill.amount;
         const prevLoyaltyEarned = calculateLoyaltyPoints(prevTotalAmount);
+        console.log(`Reversing previous loyalty: -${prevLoyaltyEarned} points`);
         customer.loyaltyPoints -= prevLoyaltyEarned;
 
         // Step 1: Restore old balance
-        const prevWallet = bill.wallet || 0;
-        const prevLoyalty = bill.loyaltyPoints || 0;
+        const prevWallet = bill.wallet;
+        const prevLoyalty = bill.loyaltyPoints;
 
+        console.log(`Restoring old wallet ₹${prevWallet} and loyaltyPoints ${prevLoyalty}`);
         customer.walletCredit += prevWallet;
         customer.loyaltyPoints += prevLoyalty;
         await customer.save();
 
         // Step 2: Check if new values are allowed
+        console.log(`Checking if new wallet ₹${wallet} and loyaltyPoints ${loyaltyPoints} are allowed`);
+
         if (wallet > customer.walletCredit) {
-            // Rollback customer balance
+            console.log(`❌ Insufficient wallet balance. Available: ₹${customer.walletCredit}, Required: ₹${wallet}`);
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
             customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
+
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
             if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
 
@@ -472,10 +512,12 @@ const editBill = async (req, res) => {
         }
 
         if (loyaltyPoints > customer.loyaltyPoints) {
+            console.log(`❌ Insufficient loyalty points. Available: ${customer.loyaltyPoints}, Required: ${loyaltyPoints}`);
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
             customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
+
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
             if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
 
@@ -485,6 +527,8 @@ const editBill = async (req, res) => {
         }
 
         // Normalize units
+        console.log('Normalizing PC and PS units');
+
         const normalizePCUnits = (units) =>
             units.map(({ pcId, duration }) => ({ pcId, duration }))
                 .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -501,7 +545,6 @@ const editBill = async (req, res) => {
             }))
                 .sort((a, b) => a.psId.localeCompare(b.psId));
 
-
         const normalizedExistingPC = normalizePCUnits(bill.pcUnits);
         const normalizedIncomingPC = normalizePCUnits(pcUnits);
         const normalizedExistingPS = normalizePSUnits(bill.psUnits);
@@ -517,6 +560,7 @@ const editBill = async (req, res) => {
             JSON.stringify(normalizedExistingPS) === JSON.stringify(normalizedIncomingPS);
 
         if (isSame) {
+            console.log('🟡 No changes detected in bill. Deleting latest edit log.');
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
             if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
             return res.status(400).json({ message: 'No changes detected' });
@@ -527,6 +571,8 @@ const editBill = async (req, res) => {
         const bookingTimeIST = new Date(bookingTimeUTC.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
         const hourIST = bookingTimeIST.getHours();
 
+        console.log(`Recalculating total. Booking time (IST): ${bookingTimeIST}, Hour: ${hourIST}`);
+
         let totalAmount = 0;
         const type = bill.type;
 
@@ -536,15 +582,16 @@ const editBill = async (req, res) => {
                 const durationHours = unit.duration / 60;
                 totalAmount += durationHours * ratePerHour;
             }
+            console.log(`PC bill recalculated. Rate/hour: ₹${ratePerHour}, Total so far: ₹${totalAmount}`);
         } else if (type === 'ps') {
             for (const unit of psUnits) {
                 const { psId, duration, players } = unit;
+                console.log(`Calculating for PS Unit: ${psId}, Duration: ${duration}, Players: ${JSON.stringify(players)}`);
 
                 if (!Array.isArray(players) || players.length === 0) {
                     return res.status(400).json({ message: `Each psUnit must have at least one player.` });
                 }
 
-                // Initialize timeline: each minute tracks how many players are active
                 const timeline = new Array(duration).fill(0);
 
                 for (const player of players) {
@@ -555,14 +602,14 @@ const editBill = async (req, res) => {
                     }
                 }
 
-                // Count how many minutes had N players active
-                const timeCount = {}; // e.g., { '1': 30, '2': 20 }
+                const timeCount = {};
                 for (const count of timeline) {
                     if (count === 0) continue;
                     timeCount[count] = (timeCount[count] || 0) + 1;
                 }
 
-                // Compute total using accurate per-player-count pricing
+                console.log(`Time breakdown by player count:`, timeCount);
+
                 for (const [playerCountStr, minutes] of Object.entries(timeCount)) {
                     const playersActive = parseInt(playerCountStr);
                     const hours = minutes / 60;
@@ -577,18 +624,20 @@ const editBill = async (req, res) => {
                             default: ratePerHour = 40;
                         }
                     } else {
-                        // Night pricing
                         ratePerHour = 120;
                     }
 
-                    totalAmount += ratePerHour * hours * playersActive; // playersActive because each player pays per person
+                    const thisAmount = ratePerHour * hours * playersActive;
+                    totalAmount += thisAmount;
+                    console.log(`PlayerCount: ${playersActive}, Rate: ₹${ratePerHour}, Minutes: ${minutes}, Total Added: ₹${thisAmount}`);
                 }
             }
         } else {
+            console.log('❌ Invalid bill type encountered:', type);
             return res.status(400).json({ message: 'Invalid bill type.' });
         }
 
-        // Add snacks total
+        // Snacks
         let snackTotal = 0;
         if (Array.isArray(bill.snacks)) {
             for (const snack of bill.snacks) {
@@ -596,15 +645,17 @@ const editBill = async (req, res) => {
                 const quantity = Number(snack.quantity) || 0;
                 snackTotal += price * quantity;
             }
+            console.log(`Snacks total: ₹${snackTotal}`);
         }
 
         totalAmount += snackTotal;
         totalAmount = Math.round(totalAmount);
 
         const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(loyaltyPoints) + Number(discount);
+        console.log(`Final total: ₹${totalAmount}, Total paid: ₹${totalPaid}`);
 
         if (totalPaid !== totalAmount) {
-            // Rollback customer balance
+            console.log('❌ Invalid payment split.');
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
             await customer.save();
@@ -617,14 +668,16 @@ const editBill = async (req, res) => {
             });
         }
 
-        // All good, update bill and customer balance
+        // ✅ All good, update balances
+        console.log(`✅ All good. Updating customer balances. Deducting wallet: ₹${wallet}, loyalty: ${loyaltyPoints}`);
         customer.walletCredit -= wallet;
         customer.loyaltyPoints -= loyaltyPoints;
 
-        // ✅ Add new loyalty based on (amount - loyalty used)
         const earned = calculateLoyaltyPoints(totalAmount);
+        console.log(`Adding new loyalty points: ${earned}`);
         customer.loyaltyPoints += earned;
         await customer.save();
+
 
         const updatedData = {
             ...req.body,
