@@ -3,25 +3,13 @@ const Bill = require('../models/bills.models');
 const PC = require('../models/pc.models');
 const PS = require('../models/ps.models');
 
+// Updated checkAvailability function to handle both PC and PS bookings
 const checkAvailability = async (req, res) => {
     try {
-        const { pcUnits, duration } = req.body;
-        console.log(`[DEBUG] Received check availability request for units: ${pcUnits}, duration: ${duration} min`);
+        const { type, pcUnits = [], psUnits = [], duration } = req.body;
 
-        // Input validation
-        if (!Array.isArray(pcUnits)) {
-            console.warn(`[WARN] pcUnits is not an array`);
-            return res.status(400).json({ message: 'pcUnits must be an array' });
-        }
-
-        if (pcUnits.length === 0) {
-            console.warn(`[WARN] pcUnits array is empty`);
-            return res.status(400).json({ message: 'At least one PC unit required' });
-        }
-
-        if (typeof duration !== 'number' || duration <= 0) {
-            console.warn(`[WARN] Invalid duration: ${duration}`);
-            return res.status(400).json({ message: 'Duration must be a positive number in minutes' });
+        if (type !== 'pc' && type !== 'ps') {
+            return res.status(400).json({ message: 'Invalid booking type. Must be either pc or ps.' });
         }
 
         const now = new Date();
@@ -29,78 +17,131 @@ const checkAvailability = async (req, res) => {
         const requestStart = new Date(utcNow);
         const requestEnd = new Date(utcNow.getTime() + duration * 60000);
 
-        console.log(`[DEBUG] Current UTC time: ${utcNow.toISOString()}`);
-        console.log(`[DEBUG] Booking window requested: ${requestStart.toISOString()} to ${requestEnd.toISOString()}`);
-
-        // End of the current day in UTC
         const endOfToday = new Date(utcNow);
         endOfToday.setUTCHours(23, 59, 59, 999);
 
-        const invalidUnits = pcUnits.filter(unit => !/^PC\d+$/i.test(unit));
-        if (invalidUnits.length > 0) {
-            console.warn(`[WARN] Invalid PC unit format detected: ${invalidUnits}`);
-            return res.status(400).json({
-                message: 'Invalid PC unit format',
-                invalidUnits,
-                expectedFormat: 'PC followed by numbers (e.g. PC1, PC2)'
+        if (type === 'pc') {
+            if (!Array.isArray(pcUnits) || pcUnits.length === 0) {
+                return res.status(400).json({ message: 'At least one PC unit required' });
+            }
+
+            const invalidUnits = pcUnits.filter(unit => !/^PC\d+$/i.test(unit));
+            if (invalidUnits.length > 0) {
+                return res.status(400).json({
+                    message: 'Invalid PC unit format',
+                    invalidUnits,
+                    expectedFormat: 'PC followed by numbers (e.g. PC1, PC2)'
+                });
+            }
+
+            const todayBookings = await Prebook.find({
+                type: 'pc',
+                scheduledDate: { $gte: utcNow, $lte: endOfToday },
+                isConvertedToBill: false,
+            }).lean();
+
+            const conflicts = [];
+            const requestedUnits = pcUnits.map(unit => unit.toUpperCase().replace(/^PC/, ''));
+
+            for (const booking of todayBookings) {
+                const bookingStart = new Date(booking.scheduledDate);
+                const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+
+                for (const unit of booking.pcUnits) {
+                    const normalizedUnit = unit.toUpperCase();
+
+                    if (requestedUnits.includes(normalizedUnit)) {
+                        const overlap =
+                            (requestStart >= bookingStart && requestStart < bookingEnd) ||
+                            (requestEnd > bookingStart && requestEnd <= bookingEnd) ||
+                            (requestStart <= bookingStart && requestEnd >= bookingEnd);
+
+                        if (overlap) {
+                            conflicts.push({
+                                unit: normalizedUnit,
+                                bookedFrom: bookingStart,
+                                bookedUntil: bookingEnd,
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (conflicts.length > 0) {
+                const availableUnits = pcUnits.filter(unit =>
+                    !conflicts.some(c => c.unit === unit.toUpperCase())
+                );
+                return res.status(409).json({
+                    message: 'PC booking conflicts detected',
+                    conflicts,
+                    availableUnits
+                });
+            }
+
+            return res.status(200).json({
+                available: true,
+                availableUnits: pcUnits,
+                requestWindow: {
+                    start: requestStart,
+                    end: requestEnd
+                }
             });
         }
 
-        const todayBookings = await Prebook.find({
-            type: 'pc',
+        // PS Booking Handling
+        if (!Array.isArray(psUnits) || psUnits.length === 0) {
+            return res.status(400).json({ message: 'At least one PS unit required' });
+        }
+
+        const todayPSBookings = await Prebook.find({
+            type: 'ps',
             scheduledDate: { $gte: utcNow, $lte: endOfToday },
             isConvertedToBill: false,
         }).lean();
 
-        console.log(`[DEBUG] Total prebookings fetched for today: ${todayBookings.length}`);
-
         const conflicts = [];
-        const requestedUnits = pcUnits.map(unit => unit.toUpperCase().replace(/^PC/, ''));
 
-        for (const booking of todayBookings) {
-            const bookingStart = new Date(booking.scheduledDate);
-            const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+        for (const requestUnit of psUnits) {
+            const requestedPsId = requestUnit.psId;
+            const reqDuration = requestUnit.duration;
 
-            console.log(`[DEBUG] Checking booking ID ${booking._id} | Units: ${booking.pcUnits} | Time: ${bookingStart.toISOString()} - ${bookingEnd.toISOString()}`);
+            for (const booking of todayPSBookings) {
+                const bookingStart = new Date(booking.scheduledDate);
+                const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
 
-            for (const unit of booking.pcUnits) {
-                const normalizedUnit = unit.toUpperCase();
+                for (const bookedUnit of booking.psUnits) {
+                    if (bookedUnit.psId === requestedPsId) {
+                        const overlap =
+                            (requestStart >= bookingStart && requestStart < bookingEnd) ||
+                            (requestEnd > bookingStart && requestEnd <= bookingEnd) ||
+                            (requestStart <= bookingStart && requestEnd >= bookingEnd);
 
-                if (requestedUnits.includes(normalizedUnit)) {
-                    const overlap =
-                        (requestStart >= bookingStart && requestStart < bookingEnd) ||
-                        (requestEnd > bookingStart && requestEnd <= bookingEnd) ||
-                        (requestStart <= bookingStart && requestEnd >= bookingEnd);
-
-                    if (overlap) {
-                        console.log(`[⚠️ CONFLICT] Unit ${normalizedUnit} overlaps with booking ID ${booking._id}`);
-                        conflicts.push({
-                            unit: normalizedUnit,
-                            bookedFrom: bookingStart,
-                            bookedUntil: bookingEnd,
-                            conflictType: getConflictType(requestStart, requestEnd, bookingStart, bookingEnd)
-                        });
+                        if (overlap) {
+                            conflicts.push({
+                                psId: bookedUnit.psId,
+                                bookedFrom: bookingStart,
+                                bookedUntil: bookingEnd,
+                            });
+                        }
                     }
                 }
             }
         }
 
         if (conflicts.length > 0) {
-            const availableUnits = pcUnits.filter(unit =>
-                !conflicts.some(c => c.unit === unit.toUpperCase())
+            const availableUnits = psUnits.filter(u =>
+                !conflicts.some(c => c.psId === u.psId)
             );
-            console.log(`[❌ UNAVAILABLE] Conflicts found. Returning available units: ${availableUnits}`);
             return res.status(409).json({
-                message: 'Booking conflicts detected',
+                message: 'PS booking conflicts detected',
                 conflicts,
                 availableUnits
             });
         }
 
-        console.log(`[✅ AVAILABLE] All requested units are available.`);
         return res.status(200).json({
             available: true,
-            availableUnits: pcUnits,
+            availableUnits: psUnits.map(u => u.psId),
             requestWindow: {
                 start: requestStart,
                 end: requestEnd
@@ -115,6 +156,9 @@ const checkAvailability = async (req, res) => {
         });
     }
 };
+
+module.exports = { checkAvailability };
+
 
 
 
@@ -391,7 +435,6 @@ const createPrebooking = async (req, res) => {
 
             const conflicts = [];
             const requestedUnits = pcUnits.map(unit => String(unit).toUpperCase());
-
 
             for (const booking of todayBookings) {
                 const bookingStart = new Date(booking.scheduledDate);

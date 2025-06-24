@@ -156,10 +156,9 @@ async function updatePrebookingCount() {
     if (response.ok) {
       const prebookings = await response.json()
       // ✅ Filter only PS type bookings
-      const psBookings = prebookings.filter(p => p.type === 'pc');
+      const psBookings = prebookings.filter((p) => p.type === "pc")
 
       const count = psBookings.length
-
 
       // Update header button count
       const headerCount = document.getElementById("prebookingCount")
@@ -194,7 +193,7 @@ async function openPrebookingModal() {
     }
 
     const prebookings = await response.json()
-    const psBookings = prebookings.filter(p => p.type === 'pc');
+    const psBookings = prebookings.filter((p) => p.type === "pc")
 
     displayPrebookings(psBookings)
     document.getElementById("prebookingModal").classList.add("show")
@@ -310,22 +309,22 @@ async function editPrebooking(prebookingId) {
     document.getElementById("editContactNo").value = prebooking.contactNo
 
     // Format date for datetime-local input
-    const scheduledDate = new Date(prebooking.scheduledDate);
+    const scheduledDate = new Date(prebooking.scheduledDate)
 
     // Convert to IST manually (IST = UTC + 5:30)
-    const istOffsetMs = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
-    const istDate = new Date(scheduledDate.getTime() + istOffsetMs);
+    const istOffsetMs = 5.5 * 60 * 60 * 1000 // 5.5 hours in milliseconds
+    const istDate = new Date(scheduledDate.getTime() + istOffsetMs)
 
     // Format as "YYYY-MM-DDTHH:MM" for input type="datetime-local"
-    const formattedDateTime = istDate.toISOString().slice(0, 16);
-    document.getElementById("editScheduledDate").value = formattedDateTime;
-
+    const formattedDateTime = istDate.toISOString().slice(0, 16)
+    document.getElementById("editScheduledDate").value = formattedDateTime
 
     document.getElementById("editDuration").value = prebooking.duration
     document.getElementById("editPcUnits").value = prebooking.pcUnits || 0
     // document.getElementById("editPsUnits").value = prebooking.psUnits || 0
 
     document.getElementById("editPrebookingModal").classList.add("show")
+    updatePCTimes()
     playSound(600, 0.2)
   } catch (error) {
     console.error("Error loading prebooking for edit:", error)
@@ -531,7 +530,7 @@ function togglePrebookMode() {
   //   // return;
   // }
 
-  isPrebookMode = true;
+  isPrebookMode = true
   const prebookButton = document.getElementById("prebookButton")
   const bookButton = document.getElementById("bookButton")
   const prebookingSection = document.getElementById("prebookingSection")
@@ -543,7 +542,7 @@ function togglePrebookMode() {
     prebookingSection.style.display = "block"
   }
 
-  flag = false;
+  flag = false
   playSound(600, 0.2)
 }
 
@@ -974,42 +973,41 @@ async function fetchPCStatus(pcId) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-    });
-    const prebookings = await prebookRes.json();
+    })
+    const prebookings = await prebookRes.json()
     if (!Array.isArray(prebookings)) {
-      console.warn("⚠️ prebookings is not an array:", prebookings);
-      return { status, timeRemaining, nextBookingTime: null };
+      console.warn("⚠️ prebookings is not an array:", prebookings)
+      return { status, timeRemaining, nextBookingTime: null }
     }
 
-    const now = new Date();
-    console.log(`🔍 Checking future bookings for PC${pcId}`);
+    const now = new Date()
+    console.log(`🔍 Checking future bookings for PC${pcId}`)
 
     const upcoming = prebookings
-      .filter(pb => {
+      .filter((pb) => {
         const match =
           pb.type === "pc" &&
           Array.isArray(pb.pcUnits) &&
           pb.pcUnits.includes(String(pcId)) &&
           new Date(pb.scheduledDate) > now &&
-          !pb.isConvertedToBill;
+          !pb.isConvertedToBill
 
         if (match) {
-          console.log(`✅ Matched booking for PC${pcId}:`, pb);
+          console.log(`✅ Matched booking for PC${pcId}:`, pb)
         }
-        return match;
+        return match
       })
-      .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+      .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate))
 
     if (upcoming.length > 0) {
-      console.log(`📅 Next booking for PC${pcId}:`, upcoming[0].scheduledDate);
+      console.log(`📅 Next booking for PC${pcId}:`, upcoming[0].scheduledDate)
     } else {
-      console.log(`🆓 No upcoming booking found for PC${pcId}`);
+      console.log(`🆓 No upcoming booking found for PC${pcId}`)
     }
 
-    const nextBookingTime = upcoming.length > 0 ? upcoming[0].scheduledDate : null;
+    const nextBookingTime = upcoming.length > 0 ? upcoming[0].scheduledDate : null
 
-    return { status, timeRemaining, nextBookingTime };
-
+    return { status, timeRemaining, nextBookingTime }
   } catch (err) {
     console.error(`Error fetching time for PC ${pcId}`, err)
     return { status: "available", timeRemaining: "Ready to Play" }
@@ -1032,7 +1030,7 @@ async function initializePCCards() {
                 <div class="pc-status">Loading...</div>
             </div>
             <div class="pc-specs">
-                RTX 4080 • i7-13700K • 32GB RAM • 240Hz Monitor
+                RTX 4080 • i7-13700K • 32GB RAM • 32GB RAM • 240Hz Monitor
             </div>
             <div class="next-booking">Next booking: --</div>
             <div class="pc-time">Checking...</div>
@@ -1071,7 +1069,7 @@ async function unfreezePC(formattedPcId) {
     alert("An unexpected error occurred.")
   }
 }
-const activeCountdowns = {}; // Holds active countdown intervals per PC
+const activeCountdowns = {} // Holds active countdown intervals per PC
 
 async function updatePCTimes() {
   for (const pc of pcData) {
@@ -1093,9 +1091,7 @@ async function updatePCTimes() {
     timeDiv.className = `pc-time ${status}`
 
     if (nextBookingDiv) {
-      nextBookingDiv.textContent = nextBookingTime
-        ? `Next booking: ${formatTime(nextBookingTime)}`
-        : "Next booking: --"
+      nextBookingDiv.textContent = nextBookingTime ? `Next booking: ${formatTime(nextBookingTime)}` : "Next booking: --"
     }
 
     if (status === "occupied" || status === "ending-soon") {
@@ -1158,17 +1154,16 @@ async function updatePCTimes() {
 }
 
 function formatTime(isoString) {
-  const date = new Date(isoString);
+  const date = new Date(isoString)
   return date.toLocaleString(undefined, {
-    weekday: 'short',      // e.g., "Fri"
-    month: 'short',        // e.g., "Jun"
-    day: 'numeric',        // e.g., "21"
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+    weekday: "short", // e.g., "Fri"
+    month: "short", // e.g., "Jun"
+    day: "numeric", // e.g., "21"
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
 }
-
 
 function confirmExtend(pcId, minutes) {
   const price = minutes === 15 ? 20 : 25
@@ -1202,7 +1197,64 @@ function updateStatusCounts() {
   document.getElementById("endingSoonCount").textContent = endingSoon
   document.getElementById("occupiedCount").textContent = occupied
 }
-let flag = false;
+// Refresh Functions
+async function refreshPCCards() {
+  playSound(600, 0.2)
+
+  // Show loading state
+  const refreshBtn = document.getElementById("refreshPCBtn")
+  const originalText = refreshBtn.innerHTML
+  refreshBtn.innerHTML = "🔄 Refreshing..."
+  refreshBtn.disabled = true
+
+  try {
+    await updatePCTimes()
+    await convertDuePrebookings()
+
+    // Success feedback
+    refreshBtn.innerHTML = "✅ Updated!"
+    setTimeout(() => {
+      refreshBtn.innerHTML = originalText
+      refreshBtn.disabled = false
+    }, 1500)
+  } catch (error) {
+    console.error("Error refreshing PC cards:", error)
+    refreshBtn.innerHTML = "❌ Error"
+    setTimeout(() => {
+      refreshBtn.innerHTML = originalText
+      refreshBtn.disabled = false
+    }, 2000)
+  }
+}
+
+async function refreshUnpaidBills() {
+  playSound(600, 0.2)
+
+  // Show loading state
+  const refreshBtn = document.getElementById("refreshBillsBtn")
+  const originalText = refreshBtn.innerHTML
+  refreshBtn.innerHTML = "🔄 Refreshing..."
+  refreshBtn.disabled = true
+
+  try {
+    await updateUnpaidBills()
+    await convertDuePrebookings()
+    // Success feedback
+    refreshBtn.innerHTML = "✅ Updated!"
+    setTimeout(() => {
+      refreshBtn.innerHTML = originalText
+      refreshBtn.disabled = false
+    }, 1500)
+  } catch (error) {
+    console.error("Error refreshing unpaid bills:", error)
+    refreshBtn.innerHTML = "❌ Error"
+    setTimeout(() => {
+      refreshBtn.innerHTML = originalText
+      refreshBtn.disabled = false
+    }, 2000)
+  }
+}
+let flag = false
 function selectPC(pcId) {
   const pc = pcData.find((p) => p.id === pcId)
 
@@ -1212,39 +1264,39 @@ function selectPC(pcId) {
   }
   // For occupied/ending-soon PCs
   if (pc.status === "occupied" || pc.status === "ending-soon" || pc.status === "payment-due") {
-    playSound(500, 0.2);
+    playSound(500, 0.2)
 
     // Set context flag
     // occupiedPcContext = true;
 
-    isPrebookMode = true;
-    flag = true;
+    isPrebookMode = true
+    flag = true
     // Clear previous selection and select only this PC
-    selectedPCs = [pcId];
-    updateSelectedPCsList();
+    selectedPCs = [pcId]
+    updateSelectedPCsList()
 
     // Show booking section with prebook mode
-    document.getElementById("bookSection").classList.add("show");
+    document.getElementById("bookSection").classList.add("show")
 
     // Force prebook mode UI
-    const prebookButton = document.getElementById("prebookButton");
-    const bookButton = document.getElementById("bookButton");
-    const prebookingSection = document.getElementById("prebookingSection");
+    const prebookButton = document.getElementById("prebookButton")
+    const bookButton = document.getElementById("bookButton")
+    const prebookingSection = document.getElementById("prebookingSection")
 
-    prebookButton.classList.add("active");
-    prebookButton.textContent = "📅 Cancel Prebook";
-    bookButton.textContent = "Create Prebooking";
-    prebookingSection.style.display = "block";
+    prebookButton.classList.add("active")
+    prebookButton.textContent = "📅 Cancel Prebook"
+    bookButton.textContent = "Create Prebooking"
+    prebookingSection.style.display = "block"
 
     // Hide regular booking button
-    bookButton.style.display = "block";
+    bookButton.style.display = "block"
 
     // Set minimum date to current date and time
-    const now = new Date();
-    const minDateTime = now.toISOString().slice(0, 16);
-    document.getElementById("scheduledDateTime").min = minDateTime;
+    const now = new Date()
+    const minDateTime = now.toISOString().slice(0, 16)
+    document.getElementById("scheduledDateTime").min = minDateTime
 
-    return;
+    return
   }
   if (pc.status !== "available") {
     playSound(300, 0.3)
@@ -1320,7 +1372,7 @@ function cancelSelection() {
   prebookButton.classList.remove("active")
   prebookButton.textContent = "📅 Prebook"
   bookButton.textContent = "Book Now"
-  bookButton.style.display = "block";  // Re-enable book button
+  bookButton.style.display = "block" // Re-enable book button
   prebookingSection.style.display = "none"
 
   document.getElementById("bookSection").classList.remove("show")
@@ -1409,16 +1461,17 @@ async function bookSelectedPCs() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          pcUnits: bookings.map(b => b.pcId),
+          type: 'pc',
+          pcUnits: bookings.map((b) => b.pcId),
           duration,
         }),
-      });
+      })
 
-      const availabilityResult = await availabilityRes.json();
+      const availabilityResult = await availabilityRes.json()
 
       if (!availabilityRes.ok) {
-        alert(`Cannot book: ${availabilityResult.message}`);
-        return;
+        alert(`Cannot book: ${availabilityResult.message}`)
+        return
       }
 
       const response = await fetch("/api/pc/book", {
@@ -1689,49 +1742,138 @@ async function showPaymentModal(billId) {
     const originalAmount = bill.amount.toFixed(2)
 
     paymentSummary.innerHTML = `
-            <div><strong>Booking Time:</strong> ${formattedBookingTime}</div>
-            <div><strong>Customer Name:</strong> ${bill.userName}</div>
-            <div><strong>Contact No:</strong> ${bill.contactNo}</div>
-            <div><strong>PC Used:</strong></div>
-            <div style="margin-left: 15px;">${pcUsageList}</div>
-            ${snacksSection}
-            ${amountBreakdown}
-
-            <div id="walletSection" style="margin: 15px 0;">
-                <label>
-                    <input type="checkbox" id="useWalletCheckbox" />
-                    <strong>Use Wallet Credit</strong>
-                </label>
-                <div id="walletCreditDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
+    <div class="payment-info-grid">
+        <div class="payment-card customer-info">
+            <div class="card-header">
+                <span class="card-icon">👤</span>
+                <h4>Customer Details</h4>
             </div>
-
-            <div id="loyaltySection" style="margin: 15px 0;">
-            <label>
-            <input type="checkbox"  id="useLoyaltyCheckbox" />
-            <strong>Use Loyalty Points</strong>
-            </label>
-            <div id="loyaltyPointsDisplay" style="margin-top: 5px; font-size: 14px; color: #444;"></div>
+            <div class="info-row">
+                <span class="label">Name:</span>
+                <span class="value">${bill.userName}</span>
             </div>
-
-            <div style="margin-top: 15px;">
-                <label><strong>Discount (₹):</strong></label><br/>
-                <input type="number" id="discountInput" min="0" value="0" style="padding: 5px; width: 100%; margin-bottom: 15px;" />
+            <div class="info-row">
+                <span class="label">Contact:</span>
+                <span class="value">${bill.contactNo}</span>
             </div>
-
-            <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                    <label><strong>Cash Payment (₹):</strong></label><br/>
-                    <input type="number" id="cashInput" min="0" required style="padding: 5px; width: 100%;" />
-                </div>
-                <div style="flex: 1;">
-                    <label><strong>UPI Payment (₹):</strong></label><br/>
-                    <input type="number" id="upiInput" min="0" required style="padding: 5px; width: 100%;" />
-                </div>
-            </div> 
-            <div class="payment-total" style="margin-top: 10px;">
-                <strong>Total Amount:</strong> ₹<span id="finalAmount">${originalAmount}</span>
+            <div class="info-row">
+                <span class="label">Booked:</span>
+                <span class="value">${formattedBookingTime}</span>
             </div>
+        </div>
+
+        <div class="payment-card usage-info">
+            <div class="card-header">
+                <span class="card-icon">🎮</span>
+                <h4>Gaming Session</h4>
+            </div>
+            <div class="usage-list">
+                ${bill.pcUnits
+        .map(
+          (unit) => `
+                    <div class="usage-item">
+                        <span class="pc-name">${unit.pcId}</span>
+                        <span class="duration">${unit.duration} mins</span>
+                    </div>
+                `,
+        )
+        .join("")}
+            </div>
+        </div>
+
+        ${bill.snacks && bill.snacks.length > 0
+        ? `
+        <div class="payment-card snacks-info">
+            <div class="card-header">
+                <span class="card-icon">🍿</span>
+                <h4>Snacks & Beverages</h4>
+            </div>
+            <div class="snacks-list">
+                ${bill.snacks
+          .map(
+            (snack) => `
+                    <div class="snack-item">
+                        <span class="snack-name">${snack.name}</span>
+                        <span class="snack-qty">${snack.quantity}x</span>
+                        <span class="snack-price">₹${snack.price}</span>
+                    </div>
+                `,
+          )
+          .join("")}
+            </div>
+        </div>
         `
+        : ""
+      }
+
+        <div class="payment-card payment-options">
+            <div class="card-header">
+                <span class="card-icon">💳</span>
+                <h4>Payment Options</h4>
+            </div>
+            
+            <div class="wallet-loyalty-section">
+                <div class="option-toggle">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="useWalletCheckbox" />
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-text">Use Wallet Credit</span>
+                    </label>
+                    <div id="walletCreditDisplay" class="credit-display">Available: ₹0</div>
+                </div>
+
+                <div class="option-toggle">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="useLoyaltyCheckbox" />
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-text">Use Loyalty Points</span>
+                    </label>
+                    <div id="loyaltyPointsDisplay" class="credit-display">Available: ₹0</div>
+                </div>
+            </div>
+
+            <div class="payment-inputs">
+                <div class="input-group">
+                    <label class="input-label">💰 Discount</label>
+                    <input type="number" id="discountInput" min="0" value="0" class="payment-input" placeholder="0" />
+                </div>
+                
+                <div class="payment-methods">
+                    <div class="input-group">
+                        <label class="input-label">💵 Cash Payment</label>
+                        <input type="number" id="cashInput" min="0" class="payment-input" placeholder="0" />
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">📱 UPI Payment</label>
+                        <input type="number" id="upiInput" min="0" class="payment-input" placeholder="0" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="payment-total-section">
+        <div class="total-breakdown">
+            ${bill.remainingAmt > 0
+        ? `
+                <div class="amount-row">
+                    <span>Paid Amount:</span>
+                    <span>₹${bill.paidAmt?.toFixed(2) || 0}</span>
+                </div>
+                <div class="amount-row">
+                    <span>Remaining:</span>
+                    <span>₹${bill.remainingAmt.toFixed(2)}</span>
+                </div>
+            `
+        : ""
+      }
+            <div class="total-row">
+                <span>Total Amount:</span>
+                <span class="total-amount">₹<span id="finalAmount">${originalAmount}</span></span>
+            </div>
+        </div>
+    </div>
+`
 
     const discountInput = document.getElementById("discountInput")
     const finalAmountDisplay = document.getElementById("finalAmount")
