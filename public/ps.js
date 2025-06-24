@@ -242,9 +242,9 @@ function displayPrebookings(prebookings) {
             if (prebooking.type === "pc") {
                 unitsHtml = prebooking.pcUnits.map((unit, i) => `PC${unit}`).join(", ")
             } else {
-                unitsHtml = prebooking.psUnits
+                unitsHtml = (prebooking.psUnits || [])
                     .map((unit, uIndex) => {
-                        const playerDetails = unit.players
+                        const playerDetails = (unit.players || [])
                             .map((p) => `<div class="player-line">Player ${p.playerNo} - ${p.duration} min</div>`)
                             .join("")
 
@@ -1569,7 +1569,7 @@ async function bookSelectedPSs() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    type:'ps',
+                    type: 'ps',
                     psUnits: bookings.map((b) => b.psId),
                     duration,
                 }),
