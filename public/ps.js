@@ -333,31 +333,30 @@ async function editPrebooking(prebookingId) {
                 const playerCount = unit.players ? unit.players.length : 1
 
                 return `
-          <div class="form-group ps-unit-edit-block">
-            <label class="form-label">PS Unit: ${unit.psId}</label>
-            
-            <div class="form-subgroup">
-              <label>Unit Duration (minutes)</label>
-              <input type="number"
-                class="form-input unit-duration-input"
-                data-psindex="${index}"
-                value="${unit.duration}"
-                min="30"
-                step="30"
-              />
-            </div>
-            
-            <div class="form-subgroup">
-              <label>Number of Players</label>
-              <select class="form-input player-count-select" data-psindex="${index}">
-                ${[1, 2, 3, 4]
-                        .map(
-                            (count) => `<option value="${count}" ${count === playerCount ? "selected" : ""}>${count}</option>`,
-                        )
+      <div class="form-group ps-unit-edit-block">
+        <label class="form-label">PS Unit: ${unit.psId}</label>
+        
+        <div class="form-subgroup">
+          <label>Unit Duration (minutes)</label>
+          <input type="number"
+            class="form-input unit-duration-input"
+            data-psindex="${index}"
+            data-original-psid="${unit.psId}"
+            value="${unit.duration}"
+            min="30"
+            step="30"
+          />
+        </div>
+        
+        <div class="form-subgroup">
+          <label>Number of Players</label>
+          <select class="form-input player-count-select" data-psindex="${index}">
+            ${[1, 2, 3, 4]
+                        .map((count) => `<option value="${count}" ${count === playerCount ? "selected" : ""}>${count}</option>`)
                         .join("")}
-              </select>
-            </div>
-          </div>`
+          </select>
+        </div>
+      </div>`
             })
             .join("")
 
@@ -397,6 +396,7 @@ async function saveEditedPrebooking() {
 
     document.querySelectorAll(".unit-duration-input").forEach((input) => {
         const psIndex = input.dataset.psindex
+        const originalPsId = input.dataset.originalPsid // Get the original PS ID
         const unitDuration = Number.parseInt(input.value, 10)
         const playerCountSelect = document.querySelector(`.player-count-select[data-psindex="${psIndex}"]`)
         const playerCount = Number.parseInt(playerCountSelect.value, 10)
@@ -411,7 +411,7 @@ async function saveEditedPrebooking() {
         }))
 
         psUnitsData.push({
-            psId: `PS${Number.parseInt(psIndex) + 1}`, // Reconstruct PS ID
+            psId: originalPsId, // Use the original PS ID instead of reconstructing
             duration: unitDuration,
             players: players,
         })
@@ -1531,7 +1531,7 @@ async function bookSelectedPSs() {
                     contactNo: contactNumber,
                     scheduledDate: scheduledDateTime,
                     duration,
-                    // billedBy: "Admin",
+                    billedBy: "Admin",
                 }),
             })
 

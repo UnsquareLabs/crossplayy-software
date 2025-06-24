@@ -323,7 +323,7 @@ const convertDuePrebookings = async (req, res) => {
                                     { status: false, bookingTime: null, duration: 0 }
                                 );
                                 console.log(`⏱️ Auto-unbooked PS: PS${psId}`);
-                            }, maxDuration * 60 * 1000);
+                            }, maxPlayerDuration * 60 * 1000);
                         } catch (psError) {
                             console.error(`❌ Failed to book ${psId}:`, psError);
                         }

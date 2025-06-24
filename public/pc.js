@@ -320,7 +320,8 @@ async function editPrebooking(prebookingId) {
     document.getElementById("editScheduledDate").value = formattedDateTime
 
     document.getElementById("editDuration").value = prebooking.duration
-    document.getElementById("editPcUnits").value = prebooking.pcUnits || 0
+    document.getElementById("editPcUnits").value = (prebooking.pcUnits || []).join(", ");
+    // document.getElementById("editPcUnits").value = prebooking.pcUnits || 0
     // document.getElementById("editPsUnits").value = prebooking.psUnits || 0
 
     document.getElementById("editPrebookingModal").classList.add("show")
@@ -348,20 +349,21 @@ async function saveEditedPrebooking() {
   const contactNo = document.getElementById("editContactNo").value.trim()
   const scheduledDate = document.getElementById("editScheduledDate").value
   const duration = Number.parseInt(document.getElementById("editDuration").value)
-  const pcUnits = Number.parseInt(document.getElementById("editPcUnits").value) || 0
-  const psUnits = 0
+  // const pcUnitsRaw = document.getElementById("editPcUnits").value.trim();
+  // const pcUnits = pcUnitsRaw ? pcUnitsRaw.split(",").map(u => u.trim()) : [];
+  // const psUnits = 0
 
   if (!name || !contactNo || !scheduledDate || !duration) {
     alert("Please fill in all required fields")
     return
   }
 
-  if (pcUnits === 0 && psUnits === 0) {
-    alert("Please specify at least one PC or PS unit")
-    return
-  }
+  // if (pcUnits === 0 && psUnits === 0) {
+  //   alert("Please specify at least one PC or PS unit")
+  //   return
+  // }
 
-  const type = pcUnits > 0 ? "pc" : "ps"
+  // const type = pcUnits > 0 ? "pc" : "ps"
 
   try {
     const response = await fetch(`/api/prebook/${currentEditingPrebookingId}`, {
@@ -375,9 +377,9 @@ async function saveEditedPrebooking() {
         contactNo,
         scheduledDate,
         duration,
-        type,
-        pcUnits: type === "pc" ? pcUnits : 0,
-        psUnits: type === "ps" ? psUnits : 0,
+        // type,
+        // pcUnits: type === "pc" ? pcUnits : 0,
+        // psUnits: type === "ps" ? psUnits : 0,
         billedBy: "Admin", // You can modify this based on your auth system
       }),
     })
