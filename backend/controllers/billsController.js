@@ -31,11 +31,11 @@ const createBill = async (req, res) => {
             }
         }
 
-        // Get current time in IST
-        const nowUTC = new Date();
-        const nowIST = new Date(nowUTC.getTime() + 5.5 * 60 * 60 * 1000);
-        const hourIST = nowIST.getHours();
+        const nowIST = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+        const hourIST = new Date(nowIST).getHours();
 
+
+        console.log(hourIST);
         let totalAmount = 0;
 
         // Normal hours 9 am to 10 pm
@@ -234,6 +234,11 @@ const extendBill = async (req, res) => {
             }
 
             unit.duration += extendTime;
+            if (Array.isArray(unit.players) && unit.players.length > 0) {
+                unit.players.forEach(player => {
+                    player.duration += extendTime;
+                });
+            }
             // 💰 New PS pricing logic
             const players = unit.players || 1; // default to 1 if missing
             if (extendTime === 15) {
@@ -311,6 +316,11 @@ const markBillAsPaid = async (req, res) => {
 
         const totalDue = bill.amount;
         const effectivePaid = totalDue - discount - bill.paidAmt;
+        const check = totalDue - discount;
+        if (check < 0) {
+            // console.log(totalDue-discount);
+            return res.status(400).json({ message: 'totalDue - discount is Negative' });
+        }
 
         console.log(`💰 Total due: ₹${totalDue}, Effective to be paid after discount: ₹${effectivePaid}`);
 
@@ -658,6 +668,7 @@ const editBill = async (req, res) => {
             console.log('❌ Invalid payment split.');
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
+            customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
 
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });

@@ -380,7 +380,7 @@ async function saveEditedPrebooking() {
         // type,
         // pcUnits: type === "pc" ? pcUnits : 0,
         // psUnits: type === "ps" ? psUnits : 0,
-        billedBy: "Admin", // You can modify this based on your auth system
+        // billedBy: "Admin", // You can modify this based on your auth system
       }),
     })
 
@@ -919,6 +919,105 @@ function setupCategoryFilter() {
 }
 
 // PC Management Functions
+// async function fetchPCStatus(pcId) {
+//   try {
+//     const res = await fetch(`/api/pc/timeleft/PC${pcId}`, {
+//       method: "GET",
+//       headers: {
+//         Authorization: `Bearer ${token}`,
+//         "Content-Type": "application/json",
+//       },
+//     })
+//     const data = await res.json()
+
+//     const minutes = data.timeLeft
+//     let status = "available"
+//     let timeRemaining = "Ready to Play"
+
+//     if (typeof minutes === "number" && minutes > 0) {
+//       if (minutes <= 15) {
+//         status = "ending-soon"
+//         timeRemaining = `${minutes}m`
+//       } else {
+//         const hours = Math.floor(minutes / 60)
+//         const mins = minutes % 60
+//         timeRemaining = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+//         status = "occupied"
+//       }
+//     }
+
+//     if (status === "available") {
+//       const billsRes = await fetch("/api/bills/all", {
+//         method: "GET",
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//       })
+//       const bills = await billsRes.json()
+
+//       for (const bill of bills) {
+//         if (!bill.status && bill.type === "pc") {
+//           const pcUnitMatch = bill.pcUnits.find((unit) => unit.pcId === `PC${pcId}`)
+//           if (pcUnitMatch) {
+//             return {
+//               status: "payment-due",
+//               timeRemaining: "Payment Due",
+//             }
+//           }
+//         }
+//       }
+//     }
+//     // ✅ NEW: Fetch next booking
+//     const prebookRes = await fetch("/api/prebook/", {
+//       method: "GET",
+//       headers: {
+//         Authorization: `Bearer ${token}`,
+//         "Content-Type": "application/json",
+//       },
+//     })
+//     const prebookings = await prebookRes.json()
+//     if (!Array.isArray(prebookings)) {
+//       console.warn("⚠️ prebookings is not an array:", prebookings)
+//       return { status, timeRemaining, nextBookingTime: null }
+//     }
+
+//     const now = new Date()
+//     console.log(`🔍 Checking future bookings for PC${pcId}`)
+
+//     const upcoming = prebookings
+//       .filter((pb) => {
+//         const match =
+//           pb.type === "pc" &&
+//           Array.isArray(pb.pcUnits) &&
+//           pb.pcUnits.includes(String(pcId)) &&
+//           new Date(pb.scheduledDate) > now &&
+//           !pb.isConvertedToBill
+
+//         if (match) {
+//           console.log(`✅ Matched booking for PC${pcId}:`, pb)
+//         }
+//         return match
+//       })
+//       .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate))
+
+//     if (upcoming.length > 0) {
+//       console.log(`📅 Next booking for PC${pcId}:`, upcoming[0].scheduledDate)
+//     } else {
+//       console.log(`🆓 No upcoming booking found for PC${pcId}`)
+//     }
+
+//     const nextBookingTime = upcoming.length > 0 ? upcoming[0].scheduledDate : null
+
+//     return { status, timeRemaining, nextBookingTime }
+//   } catch (err) {
+//     console.error(`Error fetching time for PC ${pcId}`, err)
+//     return { status: "available", timeRemaining: "Ready to Play" }
+//   }
+// }
+
+const pcTimers = {} // 🆕 Map to track timers per PC
+
 async function fetchPCStatus(pcId) {
   try {
     const res = await fetch(`/api/pc/timeleft/PC${pcId}`, {
@@ -968,6 +1067,7 @@ async function fetchPCStatus(pcId) {
         }
       }
     }
+
     // ✅ NEW: Fetch next booking
     const prebookRes = await fetch("/api/prebook/", {
       method: "GET",
@@ -1009,12 +1109,29 @@ async function fetchPCStatus(pcId) {
 
     const nextBookingTime = upcoming.length > 0 ? upcoming[0].scheduledDate : null
 
+    // 🆕 Set/Reset Timer for next booking
+    if (nextBookingTime) {
+      const msUntilBooking = new Date(nextBookingTime).getTime() - now.getTime()
+      if (msUntilBooking > 0) {
+        if (pcTimers[pcId]) {
+          clearTimeout(pcTimers[pcId])
+          console.log(`🔁 Cleared existing timer for PC${pcId}`)
+        }
+        pcTimers[pcId] = setTimeout(() => {
+          console.log(`⏱️ Booking time arrived for PC${pcId}. Trigger action.`)
+          // 👉 Optionally refresh status, disable UI, or auto-transition
+        }, msUntilBooking)
+        console.log(`⏲️ Set timer for PC${pcId} in ${Math.round(msUntilBooking / 1000)} seconds`)
+      }
+    }
+
     return { status, timeRemaining, nextBookingTime }
   } catch (err) {
     console.error(`Error fetching time for PC ${pcId}`, err)
     return { status: "available", timeRemaining: "Ready to Play" }
   }
 }
+
 
 async function initializePCCards() {
   const pcGrid = document.getElementById("pcGrid")
@@ -1421,7 +1538,7 @@ async function bookSelectedPCs() {
           contactNo: contactNumber,
           scheduledDate: scheduledDateTime,
           duration: duration,
-          billedBy: "Admin", // You can modify this based on your auth system
+          // billedBy: "Admin", // You can modify this based on your auth system
         }),
       })
 
