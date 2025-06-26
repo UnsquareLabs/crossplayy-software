@@ -171,223 +171,6 @@ function getConflictType(reqStart, reqEnd, bookStart, bookEnd) {
     return 'unknown';
 }
 
-// const convertDuePrebookings = async (req, res) => {
-//     try {
-//         const now = new Date();
-//         const currentUTCMinute = new Date(Date.UTC(
-//             now.getUTCFullYear(),
-//             now.getUTCMonth(),
-//             now.getUTCDate(),
-//             now.getUTCHours(),
-//             now.getUTCMinutes(),
-//             0, 0
-//         ));
-//         const nextUTCMinute = new Date(currentUTCMinute.getTime() + 60000);
-
-//         console.log(`[${new Date().toISOString()}] Checking for bookings at ${currentUTCMinute.toISOString()}`);
-
-//         const duePrebooks = await Prebook.find({
-//             $and: [
-//                 { scheduledDate: { $gte: currentUTCMinute, $lt: nextUTCMinute } },
-//                 { isConvertedToBill: { $ne: true } }
-//             ]
-//         }).sort({ scheduledDate: 1 });
-
-//         const billsCreated = [];
-
-//         for (const booking of duePrebooks) {
-//             try {
-//                 const { type, pcUnits, psUnits, name: userName, contactNo, duration, billedBy } = booking;
-
-//                 if (!type || !userName || !contactNo || !duration || !billedBy) {
-//                     console.log(`⚠️ Skipping booking ${booking._id} - Missing required fields`);
-//                     continue;
-//                 }
-
-//                 const nowIST = new Date(currentUTCMinute.getTime() + 5.5 * 60 * 60 * 1000);
-//                 const hourIST = nowIST.getHours();
-//                 let totalAmount = 0;
-
-//                 const billData = {
-//                     type,
-//                     userName,
-//                     contactNo,
-//                     billedBy,
-//                     bookingTime: new Date(),
-//                     status: false,
-//                     amount: 0,
-//                     remainingAmt: 0,
-//                     gamingTotal: 0,
-//                     snacksTotal: 0,
-//                 };
-
-//                 if (type === 'pc' && pcUnits?.length > 0) {
-//                     const ratePerHour = hourIST < 22 ? 50 : 60;
-//                     const durationHours = duration / 60;
-//                     totalAmount = durationHours * ratePerHour * pcUnits.length;
-
-//                     billData.pcUnits = pcUnits.map(unitId => ({
-//                         pcId: `PC${unitId}`,
-//                         duration
-//                     }));
-
-//                     for (const pcId of pcUnits) {
-//                         const fullPcId = `PC${pcId}`;
-//                         try {
-//                             await PC.findOneAndUpdate(
-//                                 { pcId: fullPcId },
-//                                 {
-//                                     bookingTime: new Date(),
-//                                     duration,
-//                                     status: true
-//                                 },
-//                                 { new: true }
-//                             );
-
-//                             setTimeout(async () => {
-//                                 await PC.findOneAndUpdate(
-//                                     { pcId: fullPcId },
-//                                     { status: false, bookingTime: null, duration: 0 }
-//                                 );
-//                                 console.log(`⏱️ Auto-unbooked PC: ${fullPcId}`);
-//                             }, duration * 60 * 1000);
-
-//                             console.log(`✅ Booked PC: ${fullPcId} for ${duration} minutes`);
-//                         } catch (pcError) {
-//                             console.error(`❌ Failed to book PC ${fullPcId}:`, pcError);
-//                         }
-//                     }
-//                 } else if (type === 'ps' && Array.isArray(psUnits) && psUnits.length > 0) {
-//                     for (const unit of psUnits) {
-//                         const { psId, duration, players = [] } = unit;
-
-//                         if (!Array.isArray(players) || players.length === 0) {
-//                             continue;
-//                         }
-
-//                         const timeline = new Array(duration).fill(0);
-//                         for (const player of players) {
-//                             const end = Math.min(duration, player.duration);
-//                             for (let i = 0; i < end; i++) {
-//                                 timeline[i]++;
-//                             }
-//                         }
-
-//                         const timeCount = {};
-//                         for (const count of timeline) {
-//                             if (count === 0) continue;
-//                             timeCount[count] = (timeCount[count] || 0) + 1;
-//                         }
-
-//                         for (const [playerCountStr, minutes] of Object.entries(timeCount)) {
-//                             const playersActive = parseInt(playerCountStr);
-//                             const hours = minutes / 60;
-//                             let rate;
-
-//                             if (hourIST < 22) {
-//                                 switch (playersActive) {
-//                                     case 1: rate = 100; break;
-//                                     case 2: rate = 55; break;
-//                                     case 3: rate = 50; break;
-//                                     case 4: rate = 45; break;
-//                                     default: rate = 40;
-//                                 }
-//                             } else {
-//                                 rate = 120;
-//                             }
-
-//                             totalAmount += rate * hours * playersActive;
-//                         }
-
-//                         // Auto-book this PS unit for max player duration
-//                         const durations = players.map(p => p.duration || 0);
-//                         console.log(`⏱️ Extracted player durations:`, durations);
-
-//                         const maxPlayerDuration = Math.max(...durations);
-//                         console.log(`🔍 Max player duration for ${psId}: ${maxPlayerDuration} minutes`);
-
-//                         try {
-//                             await PS.findOneAndUpdate(
-//                                 { psId: `${psId}` },
-//                                 {
-//                                     bookingTime: new Date(),
-//                                     duration: maxPlayerDuration,
-//                                     status: true
-//                                 },
-//                                 { new: true }
-//                             );
-
-//                             setTimeout(async () => {
-//                                 await PS.findOneAndUpdate(
-//                                     { psId: `${psId}` },
-//                                     { status: false, bookingTime: null, duration: 0 }
-//                                 );
-//                                 console.log(`⏱️ Auto-unbooked PS: PS${psId}`);
-//                             }, maxPlayerDuration * 60 * 1000);
-//                         } catch (psError) {
-//                             console.error(`❌ Failed to book ${psId}:`, psError);
-//                         }
-//                     }
-
-//                     billData.psUnits = psUnits.map(u => ({
-//                         psId: u.psId,
-//                         duration: u.duration,
-//                         players: u.players
-//                     }));
-//                 } else {
-//                     console.log(`⚠️ Skipping booking ${booking._id} - Invalid type or no units`);
-//                     continue;
-//                 }
-
-//                 billData.amount = totalAmount;
-//                 billData.remainingAmt = totalAmount;
-//                 billData.gamingTotal = totalAmount;
-
-//                 const newBill = new Bill(billData);
-//                 await newBill.save();
-
-//                 booking.isConvertedToBill = true;
-//                 await booking.save();
-
-//                 billsCreated.push(newBill);
-//                 console.log(`✅ Created ₹${totalAmount} bill for ${userName}'s ${type.toUpperCase()} booking`);
-//             } catch (bookingError) {
-//                 console.error(`❌ Failed to convert booking ${booking._id}:`, bookingError);
-//             }
-//         }
-
-//         const endOfTodayUTC = new Date(Date.UTC(
-//             currentUTCMinute.getUTCFullYear(),
-//             currentUTCMinute.getUTCMonth(),
-//             currentUTCMinute.getUTCDate(),
-//             23, 59, 59, 999
-//         ));
-
-//         const remainingToday = await Prebook.find({
-//             $and: [
-//                 { scheduledDate: { $gt: currentUTCMinute, $lte: endOfTodayUTC } },
-//                 { isConvertedToBill: { $ne: true } }
-//             ]
-//         });
-
-//         return res.status(200).json({
-//             success: true,
-//             convertedCount: billsCreated.length,
-//             totalAmountConverted: billsCreated.reduce((sum, bill) => sum + bill.amount, 0),
-//             remainingCount: remainingToday.length,
-//             remainingPrebooks: remainingToday.map(pb => ({
-//                 id: pb._id,
-//                 time: new Date(pb.scheduledDate).toLocaleTimeString(),
-//                 type: pb.type,
-//                 userName: pb.name
-//             }))
-//         });
-//     } catch (error) {
-//         console.error("❌ Critical error in convertDuePrebookings:", error);
-//         res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
-//     }
-// };
-
 const convertDuePrebookings = async (req, res) => {
     try {
         const now = new Date();
@@ -419,7 +202,7 @@ const convertDuePrebookings = async (req, res) => {
             try {
                 const { type, pcUnits, psUnits, name: userName, contactNo, duration } = booking;
 
-                if (!type || !userName || !contactNo || !duration ) {
+                if (!type || !userName || !contactNo || !duration) {
                     console.log(`⚠️ Skipping booking ${booking._id} - Missing required fields`);
                     continue;
                 }
@@ -448,126 +231,85 @@ const convertDuePrebookings = async (req, res) => {
 
                 if (type === 'pc' && pcUnits?.length > 0) {
                     console.log(`🖥️ Booking PC units: ${pcUnits.join(", ")}`);
-                    const ratePerHour = hourIST < 22 ? 50 : 60;
-                    const durationHours = duration / 60;
-                    totalAmount = durationHours * ratePerHour * pcUnits.length;
-                    console.log(`💰 Rate per hour: ₹${ratePerHour}, Total Amount: ₹${totalAmount}`);
+                    billData.pcUnits = pcUnits.map(unitId => ({ pcId: `PC${unitId}`, duration }));
+                    for (const unitId of pcUnits) {
+                        const pcId = `PC${unitId}`;
+                        for (let m = 0; m < duration; m++) {
+                            const minuteTime = new Date(nowIST.getTime() + m * 60000);
+                            const hour = minuteTime.getHours();
+                            const rate = getRateForPC(hour);
+                            totalAmount += rate / 60;
+                        }
 
-                    billData.pcUnits = pcUnits.map(unitId => ({
-                        pcId: `PC${unitId}`,
-                        duration
-                    }));
-
-                    for (const pcId of pcUnits) {
-                        const fullPcId = `PC${pcId}`;
                         try {
                             await PC.findOneAndUpdate(
-                                { pcId: fullPcId },
-                                {
-                                    bookingTime: new Date(),
-                                    duration,
-                                    status: true
-                                },
+                                { pcId },
+                                { bookingTime: new Date(), duration, status: true },
                                 { new: true }
                             );
 
                             setTimeout(async () => {
                                 await PC.findOneAndUpdate(
-                                    { pcId: fullPcId },
+                                    { pcId },
                                     { status: false, bookingTime: null, duration: 0 }
                                 );
-                                console.log(`⏱️ Auto-unbooked PC: ${fullPcId}`);
-                            }, duration * 60 * 1000);
+                                console.log(`⏱️ Auto-unbooked PC: ${pcId}`);
+                            }, duration * 60000);
 
                             console.log(`✅ Booked PC: ${fullPcId} for ${duration} minutes`);
                         } catch (pcError) {
                             console.error(`❌ Failed to book PC ${fullPcId}:`, pcError);
                         }
                     }
+                    // --- PS Billing ---
                 } else if (type === 'ps' && Array.isArray(psUnits) && psUnits.length > 0) {
                     console.log(`🎮 Booking PS units: ${psUnits.map(u => u.psId).join(", ")}`);
+                    billData.psUnits = [];
+
                     for (const unit of psUnits) {
-                        const { psId, duration, players = [] } = unit;
+                        const { psId, players = [] } = unit;
+                        if (players.length === 0) continue;
 
-                        if (!Array.isArray(players) || players.length === 0) {
-                            console.log(`⚠️ Skipping PS unit ${psId} - No players`);
-                            continue;
-                        }
+                        const timeline = {}; // minute -> active player count
 
-                        const timeline = new Array(duration).fill(0);
                         for (const player of players) {
-                            const end = Math.min(duration, player.duration);
-                            for (let i = 0; i < end; i++) {
-                                timeline[i]++;
+                            for (let m = 0; m < player.duration; m++) {
+                                timeline[m] = (timeline[m] || 0) + 1;
                             }
                         }
 
-                        const timeCount = {};
-                        for (const count of timeline) {
-                            if (count === 0) continue;
-                            timeCount[count] = (timeCount[count] || 0) + 1;
+                        for (const [minuteStr, activePlayers] of Object.entries(timeline)) {
+                            const m = parseInt(minuteStr, 10);
+                            const minuteTime = new Date(nowIST.getTime() + m * 60000);
+                            const hour = minuteTime.getHours();
+                            const rate = getRateForPS(hour, activePlayers);
+                            totalAmount += (rate / 60) * activePlayers;
                         }
 
-                        for (const [playerCountStr, minutes] of Object.entries(timeCount)) {
-                            const playersActive = parseInt(playerCountStr);
-                            const hours = minutes / 60;
-                            let rate;
-
-                            if (hourIST < 22) {
-                                switch (playersActive) {
-                                    case 1: rate = 100; break;
-                                    case 2: rate = 55; break;
-                                    case 3: rate = 50; break;
-                                    case 4: rate = 45; break;
-                                    default: rate = 40;
-                                }
-                            } else {
-                                rate = 120;
-                            }
-
-                            const amt = rate * hours * playersActive;
-                            console.log(`🎯 ${minutes} min with ${playersActive} players @ ₹${rate}/hr = ₹${amt}`);
-                            totalAmount += amt;
-                        }
-
-                        const durations = players.map(p => p.duration || 0);
-                        console.log(`⏱️ Player durations for PS${psId}: ${durations.join(", ")}`);
-                        const maxPlayerDuration = Math.max(...durations);
-                        console.log(`📌 Booking PS${psId} for ${maxPlayerDuration} minutes`);
-
+                        const maxDur = Math.max(...players.map(p => p.duration));
                         try {
                             await PS.findOneAndUpdate(
-                                { psId: `${psId}` },
-                                {
-                                    bookingTime: new Date(),
-                                    duration: maxPlayerDuration,
-                                    status: true
-                                },
+                                { psId },
+                                { bookingTime: new Date(), duration: maxDur, status: true },
                                 { new: true }
                             );
 
                             setTimeout(async () => {
                                 await PS.findOneAndUpdate(
-                                    { psId: `${psId}` },
+                                    { psId },
                                     { status: false, bookingTime: null, duration: 0 }
                                 );
                                 console.log(`⏱️ Auto-unbooked PS: ${psId}`);
-                            }, maxPlayerDuration * 60 * 1000);
-                        } catch (psError) {
-                            console.error(`❌ Failed to book PS ${psId}:`, psError);
+                            }, maxDur * 60000);
+                        } catch (err) {
+                            console.error(`❌ Failed to book PS ${psId}:`, err);
                         }
-                    }
 
-                    billData.psUnits = psUnits.map(u => ({
-                        psId: u.psId,
-                        duration: u.duration,
-                        players: u.players
-                    }));
-                } else {
-                    console.log(`⚠️ Skipping booking ${booking._id} - Invalid type or empty units`);
-                    continue;
+                        billData.psUnits.push({ psId, duration: maxDur, players });
+                    }
                 }
 
+                totalAmount = Math.round(totalAmount); // store whole number
                 billData.amount = totalAmount;
                 billData.remainingAmt = totalAmount;
                 billData.gamingTotal = totalAmount;
@@ -690,6 +432,24 @@ const createPrebooking = async (req, res) => {
                     }
                 }
             }
+            // 💥 Check live PC usage (status === true)
+            const pcStatuses = await PC.find({ pcId: { $in: requestedUnits }, status: true }).lean();
+            for (const pc of pcStatuses) {
+                const pcEnd = new Date(pc.bookingTime.getTime() + (pc.duration || 0) * 60000);
+                const overlap =
+                    (scheduledStart >= pc.bookingTime && scheduledStart < pcEnd) ||
+                    (scheduledEnd > pc.bookingTime && scheduledEnd <= pcEnd) ||
+                    (scheduledStart <= pc.bookingTime && scheduledEnd >= pcEnd);
+
+                if (overlap) {
+                    conflicts.push({
+                        unit: pc.pcId,
+                        bookedFrom: pc.bookingTime,
+                        bookedUntil: pcEnd,
+                        source: "live"
+                    });
+                }
+            }
 
             if (conflicts.length > 0) {
                 const availableUnits = pcUnits.filter(unit =>
@@ -749,6 +509,25 @@ const createPrebooking = async (req, res) => {
                             });
                         }
                     }
+                }
+            }
+
+            // 💥 Check live PS usage (status === true)
+            const psStatuses = await PS.find({ psId: { $in: requestedPsIds }, status: true }).lean();
+            for (const ps of psStatuses) {
+                const psEnd = new Date(ps.bookingTime.getTime() + (ps.duration || 0) * 60000);
+                const overlap =
+                    (scheduledStart >= ps.bookingTime && scheduledStart < psEnd) ||
+                    (scheduledEnd > ps.bookingTime && scheduledEnd <= psEnd) ||
+                    (scheduledStart <= ps.bookingTime && scheduledEnd >= psEnd);
+
+                if (overlap) {
+                    conflicts.push({
+                        unit: ps.psId,
+                        bookedFrom: ps.bookingTime,
+                        bookedUntil: psEnd,
+                        source: "live"
+                    });
                 }
             }
 
