@@ -1285,8 +1285,8 @@ function formatTime(isoString) {
 }
 
 function confirmExtend(pcId, minutes) {
-  const price = minutes === 15 ? 20 : 25
-  const confirmed = confirm(`Are you sure you want to extend PC ${pcId} by ${minutes} minutes for ₹${price}?`)
+  // const price = minutes === 15 ? 20 : 25
+  const confirmed = confirm(`Are you sure you want to extend PC ${pcId} by ${minutes} minutes ?`)
   if (confirmed) {
     extendTime(pcId, minutes)
   }
@@ -2057,7 +2057,11 @@ async function confirmPayment() {
 
     const oldBill = await oldBillRes.json()
     const paidAmt = oldBill.paidAmt || 0
-    const oldGamingTotal = paidAmt !== 0 ? oldBill.gamingTotal || 0 : 0
+    const totalSnacksPaid = oldBill.snacks
+      .filter(snack => snack.paidFor)
+      .reduce((total, snack) => total + (snack.price * snack.quantity), 0);
+
+    const oldGamingTotal = paidAmt !== 0 ? paidAmt - totalSnacksPaid || 0 : 0
     console.log(oldGamingTotal)
     const response = await fetch(`/api/bills/${billId}/pay`, {
       method: "PUT",

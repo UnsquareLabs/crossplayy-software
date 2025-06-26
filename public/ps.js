@@ -1237,8 +1237,8 @@ async function updatePSTimes() {
 }
 
 function confirmExtend(psId, minutes) {
-    const price = minutes === 15 ? 20 : 25
-    const confirmed = confirm(`Are you sure you want to extend PS ${psId} by ${minutes} minutes for ₹${price}?`)
+    // const price = minutes === 15 ? 20 : 25
+    const confirmed = confirm(`Are you sure you want to extend PS ${psId} by ${minutes} minutes ?`)
     if (confirmed) {
         extendTime(psId, minutes)
     }
@@ -2072,7 +2072,11 @@ async function confirmPayment() {
 
         const oldBill = await oldBillRes.json()
         const paidAmt = oldBill.paidAmt || 0
-        const oldGamingTotal = paidAmt !== 0 ? oldBill.gamingTotal || 0 : 0
+        const totalSnacksPaid = oldBill.snacks
+            .filter(snack => snack.paidFor)
+            .reduce((total, snack) => total + (snack.price * snack.quantity), 0);
+
+        const oldGamingTotal = paidAmt !== 0 ? paidAmt - totalSnacksPaid || 0 : 0
 
         const response = await fetch(`/api/bills/${billId}/pay`, {
             method: "PUT",
