@@ -134,7 +134,7 @@ const createBill = async (req, res) => {
             console.log(`🧮 Total PS Amount: ₹${totalAmount.toFixed(2)}\n`);
         }
 
-
+        totalAmount = Math.round(totalAmount);
         const billData = {
             status: false,
             type,
@@ -271,7 +271,7 @@ const extendBill = async (req, res) => {
                 console.log(`[EXT-PS] ${minuteTime.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
             }
         }
-
+        extendCost = Math.round(extendCost);
         bill.amount += extendCost;
         bill.remainingAmt += extendCost;
         bill.gamingTotal += extendCost;
@@ -591,73 +591,67 @@ const editBill = async (req, res) => {
         // Recalculate total
         const bookingTimeUTC = new Date(bill.bookingTime);
         const bookingTimeIST = new Date(bookingTimeUTC.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-        const hourIST = bookingTimeIST.getHours();
 
-        console.log(`Recalculating total. Booking time (IST): ${bookingTimeIST}, Hour: ${hourIST}`);
+        console.log(`🔁 Recalculating total. Booking Time (IST): ${bookingTimeIST.toLocaleString()}, Bill Type: ${bill.type}`);
 
         let totalAmount = 0;
-        const type = bill.type;
 
-        if (type === 'pc') {
-            const ratePerHour = hourIST < 22 ? 50 : 60;
-            for (const unit of pcUnits) {
-                const durationHours = unit.duration / 60;
-                totalAmount += durationHours * ratePerHour;
-            }
-            console.log(`PC bill recalculated. Rate/hour: ₹${ratePerHour}, Total so far: ₹${totalAmount}`);
-        } else if (type === 'ps') {
-            for (const unit of psUnits) {
-                const { psId, duration, players } = unit;
-                console.log(`Calculating for PS Unit: ${psId}, Duration: ${duration}, Players: ${JSON.stringify(players)}`);
+        function getISTMinuteOffsetDate(base, offsetMin) {
+            return new Date(base.getTime() + offsetMin * 60000);
+        }
 
-                if (!Array.isArray(players) || players.length === 0) {
-                    return res.status(400).json({ message: `Each psUnit must have at least one player.` });
+        if (bill.type === 'pc') {
+            console.log("🖥️ Recalculating PC Bill:");
+            for (const [i, unit] of pcUnits.entries()) {
+                const duration = unit.duration;
+                for (let m = 0; m < duration; m++) {
+                    const currentMinute = getISTMinuteOffsetDate(bookingTimeIST, m);
+                    const hour = currentMinute.getHours();
+                    const rate = getRateForPC(hour);
+                    const cost = rate / 60;
+                    totalAmount += cost;
+                    console.log(`[PC-${i + 1}] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
                 }
+            }
+            console.log(`🧮 Total PC Amount: ₹${totalAmount.toFixed(2)}\n`);
 
-                const timeline = new Array(duration).fill(0);
+        } else if (bill.type === 'ps') {
+            console.log("🎮 Recalculating PS Bill:");
+            for (const [i, unit] of psUnits.entries()) {
+                const timeline = new Array(unit.duration).fill(0);
 
-                for (const player of players) {
-                    const playerDuration = player.duration || 0;
-                    const end = Math.min(duration, playerDuration);
-                    for (let i = 0; i < end; i++) {
-                        timeline[i]++;
+                for (const player of unit.players || []) {
+                    const playerDuration = player.duration;
+                    const end = Math.min(unit.duration, playerDuration);
+                    for (let m = 0; m < end; m++) {
+                        timeline[m]++;
                     }
                 }
 
-                const timeCount = {};
-                for (const count of timeline) {
-                    if (count === 0) continue;
-                    timeCount[count] = (timeCount[count] || 0) + 1;
-                }
+                for (let m = 0; m < timeline.length; m++) {
+                    const activePlayers = timeline[m];
+                    if (activePlayers === 0) continue;
 
-                console.log(`Time breakdown by player count:`, timeCount);
+                    const currentMinute = getISTMinuteOffsetDate(bookingTimeIST, m);
+                    const hour = currentMinute.getHours();
+                    const rate = getRateForPS(hour, activePlayers);
+                    const cost = (rate / 60) * activePlayers;
+                    totalAmount += cost;
 
-                for (const [playerCountStr, minutes] of Object.entries(timeCount)) {
-                    const playersActive = parseInt(playerCountStr);
-                    const hours = minutes / 60;
-                    let ratePerHour;
-
-                    if (hourIST < 22) {
-                        switch (playersActive) {
-                            case 1: ratePerHour = 100; break;
-                            case 2: ratePerHour = 55; break;
-                            case 3: ratePerHour = 50; break;
-                            case 4: ratePerHour = 45; break;
-                            default: ratePerHour = 40;
-                        }
-                    } else {
-                        ratePerHour = 120;
-                    }
-
-                    const thisAmount = ratePerHour * hours * playersActive;
-                    totalAmount += thisAmount;
-                    console.log(`PlayerCount: ${playersActive}, Rate: ₹${ratePerHour}, Minutes: ${minutes}, Total Added: ₹${thisAmount}`);
+                    console.log(`[PS-${i + 1}] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
                 }
             }
+            console.log(`🧮 Total PS Amount: ₹${totalAmount.toFixed(2)}\n`);
+
         } else {
-            console.log('❌ Invalid bill type encountered:', type);
+            console.log('❌ Invalid bill type encountered:', bill.type);
             return res.status(400).json({ message: 'Invalid bill type.' });
         }
+
+        // Round final amount to nearest rupee
+        totalAmount = Math.round(totalAmount);
+        console.log(`✅ Final Total Amount (rounded): ₹${totalAmount}`);
+
 
         // Snacks
         let snackTotal = 0;
