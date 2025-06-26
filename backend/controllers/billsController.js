@@ -2,6 +2,24 @@ const Bill = require('../models/bills.models');
 const Customer = require('../models/customer.models');
 const EditLog = require('../models/editLogs.models');
 
+function getRateForPC(hour) {
+    if (hour >= 9 && hour < 11) return 40;
+    if (hour >= 22 || hour < 9) return 60;
+    return 50;
+}
+
+function getRateForPS(hour, activePlayers) {
+    if (hour >= 9 && hour < 11) return 40;
+    if (hour >= 22 || hour < 9) return 70;
+    switch (activePlayers) {
+        case 1: return 100;
+        case 2: return 60;
+        case 3: return 50;
+        case 4: return 40;
+        default: return 40;
+    }
+}
+
 // Create new bill
 const createBill = async (req, res) => {
     try {
@@ -31,99 +49,91 @@ const createBill = async (req, res) => {
             }
         }
 
-        const nowIST = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-        const hourIST = new Date(nowIST).getHours();
 
-
-        console.log(hourIST);
         let totalAmount = 0;
+        const now = new Date();
+        const nowIST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
 
-        // Normal hours 9 am to 10 pm
-        // 1 player - 100
-        // 2 player - 55/person/hour
-        // 3 player - 50/person/hour
-        // 4 player - 45/person/hour
+        function getISTMinuteOffsetDate(base, offsetMin) {
+            return new Date(base.getTime() + offsetMin * 60000);
+        }
 
-        // PC - 50rs/person/hour
 
-        // After 10 pm
 
-        // Flat 60/person/hour 
-        // Single player - 120rs
-
-        // Ps or pc
-        if (type === 'pc') {
-            // PC Pricing: before 10 PM ₹50/hr, else ₹60/hr
-            const ratePerHour = hourIST < 22 ? 50 : 60;
-            for (const unit of pcUnits) {
-                const durationHours = unit.duration / 60; // minutes to hours
-                // console.log(durationHours);
-                totalAmount += durationHours * ratePerHour;
-            }
+        // --- PC BILLING ---
+        console.log("🔵 Starting PC Billing:");
+        if (!Array.isArray(pcUnits) || pcUnits.length === 0) {
+            console.log("ℹ️ No PC units to bill.");
         } else {
+            for (const [i, unit] of pcUnits.entries()) {
+                const duration = unit.duration;
+                for (let m = 0; m < duration; m++) {
+                    const currentMinute = getISTMinuteOffsetDate(nowIST, m);
+                    const hour = currentMinute.getHours();
+                    const rate = getRateForPC(hour);
+                    const cost = rate / 60;
+                    totalAmount += cost;
+                    console.log(`[PC-${i + 1}] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
+                }
+            }
+            console.log(`🧮 Total PC Amount: ₹${totalAmount.toFixed(2)}\n`);
+        }
 
-            for (const unit of psUnits) {
+
+        // --- PS BILLING ---
+        console.log("🟢 Starting PS Billing:");
+        const psTimeline = {}; // key: minute offset → number of active players
+        let normalizedPSUnits = [];
+        if (!Array.isArray(psUnits) || psUnits.length === 0) {
+            console.log("ℹ️ No PS units to bill.");
+        } else {
+            // 🔁 Create a normalized version instead of modifying the original
+            normalizedPSUnits = psUnits.map(unit => {
                 const playerCount = Number(unit.players) || 1;
-                const playerList = [];
+                const duration = Number(unit.duration) || 0;
+
+                const playersArray = [];
                 for (let i = 1; i <= playerCount; i++) {
-                    playerList.push({
+                    playersArray.push({
                         playerNo: i,
-                        duration: unit.duration
+                        duration: duration // each player gets full duration
                     });
                 }
-                unit.players = playerList; // overwrite with expanded format
-            }
 
-            for (const unit of psUnits) {
-                const { duration, players } = unit;
+                return {
+                    psId: unit.psId,
+                    duration: duration,
+                    players: playersArray
+                };
+            });
 
-                if (!Array.isArray(players) || players.length === 0) {
-                    return res.status(400).json({ message: 'Each psUnit must have at least one player with duration.' });
+            for (const [i, unit] of normalizedPSUnits.entries()) {
+                if (!Array.isArray(unit.players)) {
+                    console.warn(`⚠️ psUnit ${i + 1} has no players array.`);
+                    continue;
                 }
 
-                // Create time map: for each minute, how many players are active
-                const timeline = new Array(duration).fill(0);
-
-                let startIndex = 0; // We assume all players start from the beginning
-
-                for (const p of players) {
-                    const playerDuration = p.duration;
-                    const endIndex = Math.min(duration, startIndex + playerDuration);
-                    for (let i = startIndex; i < endIndex; i++) {
-                        timeline[i]++;
+                for (const player of unit.players) {
+                    const playerDuration = player.duration;
+                    for (let m = 0; m < playerDuration; m++) {
+                        psTimeline[m] = (psTimeline[m] || 0) + 1;
                     }
-                }
-
-                // Tally up time for each player count
-                const timeCount = {}; // { '1': totalMinutes, '2': totalMinutes, ... }
-                for (const count of timeline) {
-                    if (count === 0) continue;
-                    timeCount[count] = (timeCount[count] || 0) + 1;
-                }
-
-                // Calculate totalAmount
-                for (const [playerCountStr, minutes] of Object.entries(timeCount)) {
-                    const players = parseInt(playerCountStr);
-                    const hours = minutes / 60;
-                    let rate = 0;
-
-                    if (hourIST < 22) {
-                        switch (players) {
-                            case 1: rate = 100; break;
-                            case 2: rate = 55; break;
-                            case 3: rate = 50; break;
-                            case 4: rate = 45; break;
-                            default: rate = 40;
-                        }
-                    } else {
-                        rate = 120;
-                    }
-
-                    totalAmount += rate * hours * players; // because each player pays the per-player rate
                 }
             }
 
+            for (const [minuteStr, activePlayers] of Object.entries(psTimeline)) {
+                const m = parseInt(minuteStr, 10);
+                const currentMinute = getISTMinuteOffsetDate(nowIST, m);
+                const hour = currentMinute.getHours();
+                const rate = getRateForPS(hour, activePlayers);
+                const cost = (rate / 60) * activePlayers;
+                totalAmount += cost;
+                console.log(`[PS] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
+            }
+
+            console.log(`🧮 Total PS Amount: ₹${totalAmount.toFixed(2)}\n`);
         }
+
 
         const billData = {
             status: false,
@@ -141,7 +151,7 @@ const createBill = async (req, res) => {
         if (type === 'pc') {
             billData.pcUnits = pcUnits;
         } else {
-            billData.psUnits = psUnits;
+            billData.psUnits = normalizedPSUnits;
         }
 
         const bill = new Bill(billData);
@@ -177,7 +187,14 @@ const extendBill = async (req, res) => {
             return res.status(400).json({ message: 'type must be either "pc" or "ps"' });
         }
 
-        let bill, unit, extendCost;
+        const now = new Date();
+        const nowIST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+
+        function getISTMinuteOffsetDate(base, offsetMin) {
+            return new Date(base.getTime() + offsetMin * 60000);
+        }
+
+        let bill, unit, extendCost = 0;
 
         if (type === 'pc') {
             if (!pcId || typeof pcId !== 'string') {
@@ -185,17 +202,13 @@ const extendBill = async (req, res) => {
             }
 
             bill = await Bill.findOne({ status: false, type: 'pc', 'pcUnits.pcId': pcId });
-
             if (!bill) {
                 bill = await Bill.findOne({ status: true, type: 'pc', 'pcUnits.pcId': pcId }).sort({ bookingTime: -1 });
                 if (!bill) {
                     return res.status(404).json({ message: `No bill found with PC ID ${pcId}` });
                 }
-
-                // Convert to unpaid and reset amounts
                 bill.status = false;
                 bill.paidAmt = bill.amount;
-                // bill.amount = 0;
                 bill.remainingAmt = 0;
             }
 
@@ -204,8 +217,17 @@ const extendBill = async (req, res) => {
                 return res.status(404).json({ message: `PC ID ${pcId} not found in bill` });
             }
 
+            const extendStart = unit.duration;
             unit.duration += extendTime;
-            extendCost = extendTime === 15 ? 15 : 25;
+
+            for (let i = 0; i < extendTime; i++) {
+                const minuteTime = getISTMinuteOffsetDate(new Date(bill.bookingTime), extendStart + i);
+                const hour = minuteTime.getHours();
+                const rate = getRateForPC(hour);
+                const cost = rate / 60;
+                extendCost += cost;
+                console.log(`[EXT-PC] ${minuteTime.toLocaleTimeString("en-IN")} | Hr: ${hour} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
+            }
 
         } else {
             // type === 'ps'
@@ -214,17 +236,13 @@ const extendBill = async (req, res) => {
             }
 
             bill = await Bill.findOne({ status: false, type: 'ps', 'psUnits.psId': psId });
-
             if (!bill) {
                 bill = await Bill.findOne({ status: true, type: 'ps', 'psUnits.psId': psId }).sort({ bookingTime: -1 });
                 if (!bill) {
                     return res.status(404).json({ message: `No bill found with PS ID ${psId}` });
                 }
-
-                // Convert to unpaid and reset amounts
                 bill.status = false;
                 bill.paidAmt = bill.amount;
-                // bill.amount = 0;
                 bill.remainingAmt = 0;
             }
 
@@ -233,47 +251,41 @@ const extendBill = async (req, res) => {
                 return res.status(404).json({ message: `PS ID ${psId} not found in bill` });
             }
 
+            const extendStart = unit.duration;
             unit.duration += extendTime;
-            if (Array.isArray(unit.players) && unit.players.length > 0) {
+
+            let activePlayers = Array.isArray(unit.players) ? unit.players.length : 1;
+
+            if (Array.isArray(unit.players)) {
                 unit.players.forEach(player => {
                     player.duration += extendTime;
                 });
             }
-            // 💰 New PS pricing logic
-            const players = unit.players || 1; // default to 1 if missing
-            if (extendTime === 15) {
-                if (players === 1) {
-                    extendCost = 25;
-                } else {
-                    extendCost = 15;
-                }
-            } else if (extendTime === 30) {
-                if (players === 1) {
-                    extendCost = 50;
-                } else if (players === 2) {
-                    extendCost = 55;
-                } else if (players === 3) {
-                    extendCost = 50;
-                } else if (players === 4) {
-                    extendCost = 45;
-                }
+
+            for (let i = 0; i < extendTime; i++) {
+                const minuteTime = getISTMinuteOffsetDate(new Date(bill.bookingTime), extendStart + i);
+                const hour = minuteTime.getHours();
+                const rate = getRateForPS(hour, activePlayers);
+                const cost = (rate / 60) * activePlayers;
+                extendCost += cost;
+                console.log(`[EXT-PS] ${minuteTime.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
             }
         }
 
-        // Add extend cost to amount and remainingAmt
         bill.amount += extendCost;
         bill.remainingAmt += extendCost;
         bill.gamingTotal += extendCost;
 
         await bill.save();
 
-        return res.status(200).json({ message: `${type.toUpperCase()} bill extended successfully`, bill });
+        return res.status(200).json({ message: `${type.toUpperCase()} bill extended successfully`, extendCost: extendCost.toFixed(2), bill });
 
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Failed to extend bill' });
     }
 };
+
 
 
 
