@@ -157,8 +157,6 @@ const checkAvailability = async (req, res) => {
     }
 };
 
-module.exports = { checkAvailability };
-
 
 
 
@@ -169,6 +167,23 @@ function getConflictType(reqStart, reqEnd, bookStart, bookEnd) {
     if (reqStart < bookEnd && reqStart >= bookStart) return 'start-overlap';
     if (reqEnd > bookStart && reqEnd <= bookEnd) return 'end-overlap';
     return 'unknown';
+}
+function getRateForPC(hour) {
+    if (hour >= 9 && hour < 11) return 40;
+    if (hour >= 22 || hour < 9) return 60;
+    return 50;
+}
+
+function getRateForPS(hour, activePlayers) {
+    if (hour >= 9 && hour < 11) return 40;
+    if (hour >= 22 || hour < 9) return 70;
+    switch (activePlayers) {
+        case 1: return 100;
+        case 2: return 60;
+        case 3: return 50;
+        case 4: return 40;
+        default: return 40;
+    }
 }
 
 const convertDuePrebookings = async (req, res) => {
@@ -212,7 +227,9 @@ const convertDuePrebookings = async (req, res) => {
                 }
 
                 const billedBy = req.user.email;
-                const nowIST = new Date(currentUTCMinute.getTime() + 5.5 * 60 * 60 * 1000);
+                const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+
+                console.log(nowIST);
                 const hourIST = nowIST.getHours();
                 let totalAmount = 0;
 
@@ -230,15 +247,62 @@ const convertDuePrebookings = async (req, res) => {
                 };
 
                 if (type === 'pc' && pcUnits?.length > 0) {
-                    console.log(`🖥️ Booking PC units: ${pcUnits.join(", ")}`);
-                    billData.pcUnits = pcUnits.map(unitId => ({ pcId: `PC${unitId}`, duration }));
-                    for (const unitId of pcUnits) {
-                        const pcId = `PC${unitId}`;
+                    console.log(`🖥️ Booking PC units: ${pcUnits.map(u => u.pcId || u).join(", ")}`);
+                    billData.pcUnits = pcUnits.map(unit => {
+                        const pcId = typeof unit === 'object' ? unit.pcId : `PC${unit}`;
+                        const dur = typeof unit === 'object' ? unit.duration : duration;
+                        return { pcId, duration: dur };
+                    });
+
+                    for (const unit of billData.pcUnits) {
+                        const { pcId, duration } = unit;
+                        const unitStart = nowIST;
+                        const unitEnd = new Date(unitStart.getTime() + duration * 60000);
+
+                        const tenPM = new Date(unitStart);
+                        tenPM.setHours(22, 0, 0, 0);
+
+                        const nineAM = new Date(unitStart);
+                        nineAM.setHours(9, 0, 0, 0);
+
+                        const elevenAM = new Date(unitStart);
+                        elevenAM.setHours(11, 0, 0, 0);
+
+                        let crossesTenPM = false;
+                        let crossesElevenAM = false;
+                        const crossMinute = unitStart.getMinutes();
+
+                        if (unitStart < tenPM && unitEnd > tenPM) {
+                            crossesTenPM = true;
+                            console.log(`⚠️ [${pcId}] booking crosses 10 PM — crossMinute = ${crossMinute}`);
+                        }
+
+                        if (unitStart >= nineAM && unitStart < elevenAM && unitEnd > elevenAM) {
+                            crossesElevenAM = true;
+                            console.log(`🎉 [${pcId}] booking crosses 11 AM — crossMinute = ${crossMinute}`);
+                        }
+
                         for (let m = 0; m < duration; m++) {
-                            const minuteTime = new Date(nowIST.getTime() + m * 60000);
+                            const minuteTime = new Date(unitStart.getTime() + m * 60000);
                             const hour = minuteTime.getHours();
-                            const rate = getRateForPC(hour);
-                            totalAmount += rate / 60;
+                            const minute = minuteTime.getMinutes();
+
+                            let rate = getRateForPC(hour);
+
+                            if (crossesTenPM && hour === 22 && minute <= crossMinute) {
+                                rate = 50;
+                                console.log(`🟡 [${pcId}] 10PM override applied at ${minuteTime.toLocaleTimeString()}`);
+                            }
+
+                            if (crossesElevenAM && hour === 11 && minute <= crossMinute) {
+                                rate = 40;
+                                console.log(`💚 [${pcId}] Happy Hour override applied at ${minuteTime.toLocaleTimeString()}`);
+                            }
+
+                            const cost = rate / 60;
+                            totalAmount += cost;
+
+                            console.log(`[${pcId}] ${minuteTime.toLocaleTimeString("en-IN")} | Hr: ${hour} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
                         }
 
                         try {
@@ -256,11 +320,12 @@ const convertDuePrebookings = async (req, res) => {
                                 console.log(`⏱️ Auto-unbooked PC: ${pcId}`);
                             }, duration * 60000);
 
-                            console.log(`✅ Booked PC: ${fullPcId} for ${duration} minutes`);
+                            console.log(`✅ Booked PC: ${pcId} for ${duration} minutes`);
                         } catch (pcError) {
-                            console.error(`❌ Failed to book PC ${fullPcId}:`, pcError);
+                            console.error(`❌ Failed to book PC ${pcId}:`, pcError);
                         }
                     }
+
                     // --- PS Billing ---
                 } else if (type === 'ps' && Array.isArray(psUnits) && psUnits.length > 0) {
                     console.log(`🎮 Booking PS units: ${psUnits.map(u => u.psId).join(", ")}`);
@@ -271,7 +336,34 @@ const convertDuePrebookings = async (req, res) => {
                         if (players.length === 0) continue;
 
                         const timeline = {}; // minute -> active player count
+                        const maxDur = Math.max(...players.map(p => p.duration));
+                        const unitStart = nowIST;
+                        const unitEnd = new Date(unitStart.getTime() + maxDur * 60000);
 
+                        const tenPM = new Date(unitStart);
+                        tenPM.setHours(22, 0, 0, 0);
+
+                        const nineAM = new Date(unitStart);
+                        nineAM.setHours(9, 0, 0, 0);
+
+                        const elevenAM = new Date(unitStart);
+                        elevenAM.setHours(11, 0, 0, 0);
+
+                        let crossesTenPM = false;
+                        let crossesElevenAM = false;
+                        let crossMinute = unitStart.getMinutes();
+
+                        if (unitStart < tenPM && unitEnd > tenPM) {
+                            crossesTenPM = true;
+                            console.log(`⚠️ [PS-${psId}] crosses 10 PM — will override rate after 10:${crossMinute} PM`);
+                        }
+
+                        if (unitStart >= nineAM && unitStart < elevenAM && unitEnd > elevenAM) {
+                            crossesElevenAM = true;
+                            console.log(`💚 [PS-${psId}] crosses 11 AM — will override rate after 11:${crossMinute} AM`);
+                        }
+
+                        // Build minute timeline
                         for (const player of players) {
                             for (let m = 0; m < player.duration; m++) {
                                 timeline[m] = (timeline[m] || 0) + 1;
@@ -280,13 +372,35 @@ const convertDuePrebookings = async (req, res) => {
 
                         for (const [minuteStr, activePlayers] of Object.entries(timeline)) {
                             const m = parseInt(minuteStr, 10);
-                            const minuteTime = new Date(nowIST.getTime() + m * 60000);
+                            const minuteTime = new Date(unitStart.getTime() + m * 60000);
                             const hour = minuteTime.getHours();
-                            const rate = getRateForPS(hour, activePlayers);
-                            totalAmount += (rate / 60) * activePlayers;
+                            const minute = minuteTime.getMinutes();
+
+                            let rate = getRateForPS(hour, activePlayers);
+                            let overrideLabel = "";
+
+                            if (crossesTenPM && hour === 22 && minute <= crossMinute) {
+                                switch (activePlayers) {
+                                    case 1: rate = 100; break;
+                                    case 2: rate = 60; break;
+                                    case 3: rate = 50; break;
+                                    default: rate = 40; break;
+                                }
+                                overrideLabel = "🟡 10PM Override";
+                            }
+
+                            if (crossesElevenAM && hour === 11 && minute <= crossMinute) {
+                                rate = 40;
+                                overrideLabel = "💚 Happy Hour Override";
+                            }
+
+                            const cost = (rate / 60) * activePlayers;
+                            totalAmount += cost;
+
+                            console.log(`[PS-${psId}] ${minuteTime.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/hr → ₹${cost.toFixed(2)} ${overrideLabel}`);
                         }
 
-                        const maxDur = Math.max(...players.map(p => p.duration));
+
                         try {
                             await PS.findOneAndUpdate(
                                 { psId },
@@ -308,6 +422,7 @@ const convertDuePrebookings = async (req, res) => {
                         billData.psUnits.push({ psId, duration: maxDur, players });
                     }
                 }
+
 
                 totalAmount = Math.round(totalAmount); // store whole number
                 billData.amount = totalAmount;
@@ -397,11 +512,13 @@ const createPrebooking = async (req, res) => {
             if (!pcUnits || !Array.isArray(pcUnits) || pcUnits.length === 0) {
                 return res.status(400).json({ message: 'pcUnits must be a non-empty array for type "pc"' });
             }
-
+            const now = new Date();
+            const nowIST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
 
             const todayBookings = await Prebook.find({
                 type: 'pc',
                 scheduledDate: {
+                    $gt: now,
                     $lte: scheduledEnd
                 },
                 isConvertedToBill: false,

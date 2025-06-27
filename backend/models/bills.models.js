@@ -99,7 +99,14 @@ const billSchema = new mongoose.Schema({
   billedBy: {
     type: String,
     required: true
-  }
+  },
+  extensions: [
+    {
+      unitId: { type: String, required: true },
+      minutes: { type: Number, required: true },
+      extendedAt: { type: Date, default: Date.now }
+    }
+  ]
 });
 
 module.exports = mongoose.model('Bill', billSchema);

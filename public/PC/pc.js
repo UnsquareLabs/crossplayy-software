@@ -1986,6 +1986,27 @@ async function showPaymentModal(billId) {
             `
         : ""
       }
+     ${bill.extensions?.length
+        ? `
+    <div class="amount-row">
+      <span>Extended Time:</span>
+      <span>
+        ${Object.entries(
+          bill.extensions.reduce((map, ext) => {
+            const key = ext.unitId || "Unknown";
+            map[key] = (map[key] || 0) + ext.minutes;
+            return map;
+          }, {})
+        )
+          .map(([unit, mins]) => `${unit}: ${mins} min`)
+          .join(", ")}
+      </span>
+    </div>
+  `
+        : ""
+      }
+
+
             <div class="total-row">
                 <span>Total Amount:</span>
                 <span class="total-amount">₹<span id="finalAmount">${originalAmount}</span></span>

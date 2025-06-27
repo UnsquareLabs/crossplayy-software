@@ -287,104 +287,114 @@ const extendBill = async (req, res) => {
             return res.status(400).json({ message: 'type must be either "pc" or "ps"' });
         }
 
-        const now = new Date();
-        const nowIST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        let bill, unit;
 
-        function getISTMinuteOffsetDate(base, offsetMin) {
-            return new Date(base.getTime() + offsetMin * 60000);
-        }
-
-        let bill, unit, extendCost = 0;
-
+        // 🔍 Find relevant bill and unit
         if (type === 'pc') {
-            if (!pcId || typeof pcId !== 'string') {
-                return res.status(400).json({ message: 'pcId is required and must be a string for type "pc"' });
-            }
+            if (!pcId) return res.status(400).json({ message: 'Missing pcId' });
 
             bill = await Bill.findOne({ status: false, type: 'pc', 'pcUnits.pcId': pcId });
             if (!bill) {
                 bill = await Bill.findOne({ status: true, type: 'pc', 'pcUnits.pcId': pcId }).sort({ bookingTime: -1 });
-                if (!bill) {
-                    return res.status(404).json({ message: `No bill found with PC ID ${pcId}` });
-                }
+                if (!bill) return res.status(404).json({ message: 'Bill not found for given PC ID' });
                 bill.status = false;
                 bill.paidAmt = bill.amount;
                 bill.remainingAmt = 0;
             }
 
             unit = bill.pcUnits.find(u => u.pcId === pcId);
-            if (!unit) {
-                return res.status(404).json({ message: `PC ID ${pcId} not found in bill` });
-            }
-
-            const extendStart = unit.duration;
-            unit.duration += extendTime;
-
-            for (let i = 0; i < extendTime; i++) {
-                const minuteTime = getISTMinuteOffsetDate(new Date(bill.bookingTime), extendStart + i);
-                const hour = minuteTime.getHours();
-                const rate = getRateForPC(hour);
-                const cost = rate / 60;
-                extendCost += cost;
-                console.log(`[EXT-PC] ${minuteTime.toLocaleTimeString("en-IN")} | Hr: ${hour} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
-            }
+            if (!unit) return res.status(404).json({ message: 'PC Unit not found in bill' });
 
         } else {
-            // type === 'ps'
-            if (!psId || typeof psId !== 'string') {
-                return res.status(400).json({ message: 'psId is required and must be a string for type "ps"' });
-            }
+            if (!psId) return res.status(400).json({ message: 'Missing psId' });
 
             bill = await Bill.findOne({ status: false, type: 'ps', 'psUnits.psId': psId });
             if (!bill) {
                 bill = await Bill.findOne({ status: true, type: 'ps', 'psUnits.psId': psId }).sort({ bookingTime: -1 });
-                if (!bill) {
-                    return res.status(404).json({ message: `No bill found with PS ID ${psId}` });
-                }
+                if (!bill) return res.status(404).json({ message: 'Bill not found for given PS ID' });
                 bill.status = false;
                 bill.paidAmt = bill.amount;
                 bill.remainingAmt = 0;
             }
 
             unit = bill.psUnits.find(u => u.psId === psId);
-            if (!unit) {
-                return res.status(404).json({ message: `PS ID ${psId} not found in bill` });
-            }
+            if (!unit) return res.status(404).json({ message: 'PS Unit not found in bill' });
+        }
 
-            const extendStart = unit.duration;
-            unit.duration += extendTime;
+        // ⏱️ Get total minutes already used
+        const baseTime = new Date(bill.bookingTime);
+        const unitDuration = unit.duration || 0;
 
-            let activePlayers = Array.isArray(unit.players) ? unit.players.length : 1;
+        const pastExtensions = Array.isArray(bill.extensions)
+            ? bill.extensions.reduce((acc, ext) => acc + (ext.minutes || 0), 0)
+            : 0;
 
-            if (Array.isArray(unit.players)) {
-                unit.players.forEach(player => {
-                    player.duration += extendTime;
-                });
-            }
+        const lastUsedMinute = unitDuration + pastExtensions;
+
+        const extensionStartTime = new Date(baseTime.getTime() + lastUsedMinute * 60000);
+        let totalAmount = 0;
+
+        function getISTMinuteOffsetDate(base, offsetMin) {
+            return new Date(base.getTime() + offsetMin * 60000);
+        }
+
+        // ✅ Get the fixed rate at the extension start
+        const startHour = extensionStartTime.getHours();
+        const startMinute = extensionStartTime.getMinutes();
+        let rate;
+
+        if (type === 'pc') {
+            rate = getRateForPC(startHour);
+            const costPerMinute = rate / 60;
 
             for (let i = 0; i < extendTime; i++) {
-                const minuteTime = getISTMinuteOffsetDate(new Date(bill.bookingTime), extendStart + i);
-                const hour = minuteTime.getHours();
-                const rate = getRateForPS(hour, activePlayers);
-                const cost = (rate / 60) * activePlayers;
-                extendCost += cost;
-                console.log(`[EXT-PS] ${minuteTime.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
+                const minuteTime = getISTMinuteOffsetDate(extensionStartTime, i);
+                totalAmount += costPerMinute;
+
+                console.log(`[EXT-PC] ${minuteTime.toLocaleTimeString("en-IN")} | Fixed Hr: ${startHour} | ₹${rate}/hr → ₹${costPerMinute.toFixed(2)}`);
+            }
+
+        } else {
+            const activePlayers = Array.isArray(unit.players) ? unit.players.length : 1;
+            rate = getRateForPS(startHour, activePlayers);
+            const costPerMinute = (rate / 60) * activePlayers;
+
+            for (let i = 0; i < extendTime; i++) {
+                const minuteTime = getISTMinuteOffsetDate(extensionStartTime, i);
+                totalAmount += costPerMinute;
+
+                console.log(`[EXT-PS] ${minuteTime.toLocaleTimeString("en-IN")} | Fixed Hr: ${startHour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${costPerMinute.toFixed(2)}`);
             }
         }
-        extendCost = Math.round(extendCost);
-        bill.amount += extendCost;
-        bill.remainingAmt += extendCost;
-        bill.gamingTotal += extendCost;
+
+
+        const roundedCost = Math.round(totalAmount);
+        bill.amount += roundedCost;
+        bill.remainingAmt += roundedCost;
+        bill.gamingTotal += roundedCost;
+
+        if (!Array.isArray(bill.extensions)) bill.extensions = [];
+        bill.extensions.push({
+            unitId: type === 'pc' ? pcId : psId,
+            minutes: extendTime,
+            extendedAt: new Date()
+        });
 
         await bill.save();
 
-        return res.status(200).json({ message: `${type.toUpperCase()} bill extended successfully`, extendCost: extendCost.toFixed(2), bill });
+        return res.status(200).json({
+            message: `${type.toUpperCase()} extended by ${extendTime} minutes`,
+            cost: roundedCost,
+            extensionStartedAt: extensionStartTime,
+            bill
+        });
 
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Failed to extend bill' });
+        console.error("❌ Failed to extend bill:", err);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 
 
@@ -702,23 +712,95 @@ const editBill = async (req, res) => {
 
         if (bill.type === 'pc') {
             console.log("🖥️ Recalculating PC Bill:");
+
             for (const [i, unit] of pcUnits.entries()) {
                 const duration = unit.duration;
+                const unitStart = bookingTimeIST;
+                const unitEnd = getISTMinuteOffsetDate(unitStart, duration);
+
+                const tenPM = new Date(unitStart);
+                tenPM.setHours(22, 0, 0, 0);
+
+                const nineAM = new Date(unitStart);
+                nineAM.setHours(9, 0, 0, 0);
+
+                const elevenAM = new Date(unitStart);
+                elevenAM.setHours(11, 0, 0, 0);
+
+                let crossesTenPM = false;
+                let crossesElevenAM = false;
+                let crossMinute = null;
+
+                if (unitStart < tenPM && unitEnd > tenPM) {
+                    crossesTenPM = true;
+                    crossMinute = unitStart.getMinutes();
+                    console.log(`⚠️ [PC-${i + 1}] crosses 10 PM — minute = ${crossMinute}`);
+                }
+
+                if (unitStart >= nineAM && unitStart < elevenAM && unitEnd > elevenAM) {
+                    crossesElevenAM = true;
+                    crossMinute = unitStart.getMinutes();
+                    console.log(`🎉 [PC-${i + 1}] crosses 11 AM — minute = ${crossMinute}`);
+                }
+
                 for (let m = 0; m < duration; m++) {
-                    const currentMinute = getISTMinuteOffsetDate(bookingTimeIST, m);
+                    const currentMinute = getISTMinuteOffsetDate(unitStart, m);
                     const hour = currentMinute.getHours();
-                    const rate = getRateForPC(hour);
+                    const minute = currentMinute.getMinutes();
+
+                    let rate = getRateForPC(hour);
+
+                    if (crossesTenPM && hour === 22 && minute <= crossMinute) {
+                        rate = 50;
+                        console.log(`🟡 [PC-${i + 1}] ${currentMinute.toLocaleTimeString()} → 10PM Override ₹50/hr`);
+                    }
+
+                    if (crossesElevenAM && hour === 11 && minute <= crossMinute) {
+                        rate = 30;
+                        console.log(`💚 [PC-${i + 1}] ${currentMinute.toLocaleTimeString()} → Happy Hour Override ₹30/hr`);
+                    }
+
                     const cost = rate / 60;
                     totalAmount += cost;
+
                     console.log(`[PC-${i + 1}] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
                 }
             }
+
             console.log(`🧮 Total PC Amount: ₹${totalAmount.toFixed(2)}\n`);
 
         } else if (bill.type === 'ps') {
             console.log("🎮 Recalculating PS Bill:");
+
             for (const [i, unit] of psUnits.entries()) {
                 const timeline = new Array(unit.duration).fill(0);
+                const unitStart = bookingTimeIST;
+                const unitEnd = getISTMinuteOffsetDate(unitStart, unit.duration);
+
+                const tenPM = new Date(unitStart);
+                tenPM.setHours(22, 0, 0, 0);
+
+                const nineAM = new Date(unitStart);
+                nineAM.setHours(9, 0, 0, 0);
+
+                const elevenAM = new Date(unitStart);
+                elevenAM.setHours(11, 0, 0, 0);
+
+                let crossesTenPM = false;
+                let crossesElevenAM = false;
+                let crossMinute = null;
+
+                if (unitStart < tenPM && unitEnd > tenPM) {
+                    crossesTenPM = true;
+                    crossMinute = unitStart.getMinutes();
+                    console.log(`⚠️ [PS-${i + 1}] crosses 10 PM — minute = ${crossMinute}`);
+                }
+
+                if (unitStart >= nineAM && unitStart < elevenAM && unitEnd > elevenAM) {
+                    crossesElevenAM = true;
+                    crossMinute = unitStart.getMinutes();
+                    console.log(`🎉 [PS-${i + 1}] crosses 11 AM — minute = ${crossMinute}`);
+                }
 
                 for (const player of unit.players || []) {
                     const playerDuration = player.duration;
@@ -732,15 +814,34 @@ const editBill = async (req, res) => {
                     const activePlayers = timeline[m];
                     if (activePlayers === 0) continue;
 
-                    const currentMinute = getISTMinuteOffsetDate(bookingTimeIST, m);
+                    const currentMinute = getISTMinuteOffsetDate(unitStart, m);
                     const hour = currentMinute.getHours();
-                    const rate = getRateForPS(hour, activePlayers);
+                    const minute = currentMinute.getMinutes();
+
+                    let rate = getRateForPS(hour, activePlayers);
+
+                    if (crossesTenPM && hour === 22 && minute <= crossMinute) {
+                        switch (activePlayers) {
+                            case 1: rate = 100; break;
+                            case 2: rate = 60; break;
+                            case 3: rate = 50; break;
+                            default: rate = 40; break;
+                        }
+                        console.log(`🟡 [PS-${i + 1}] ${currentMinute.toLocaleTimeString()} → 10PM Override ₹${rate}/pp/hr`);
+                    }
+
+                    if (crossesElevenAM && hour === 11 && minute <= crossMinute) {
+                        rate = 30;
+                        console.log(`💚 [PS-${i + 1}] ${currentMinute.toLocaleTimeString()} → Happy Hour Override ₹30/hr`);
+                    }
+
                     const cost = (rate / 60) * activePlayers;
                     totalAmount += cost;
 
                     console.log(`[PS-${i + 1}] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
                 }
             }
+
             console.log(`🧮 Total PS Amount: ₹${totalAmount.toFixed(2)}\n`);
 
         } else {
@@ -765,6 +866,46 @@ const editBill = async (req, res) => {
         }
 
         totalAmount += snackTotal;
+
+        let extensionAmount = 0;
+
+        if (Array.isArray(bill.extensions)) {
+            for (const ext of bill.extensions) {
+                const extStart = new Date(ext.extendedAt);
+                const extMinutes = Number(ext.minutes) || 0;
+
+                let activePlayers = 1; // default
+
+                if (bill.type === 'ps' && ext.unitId) {
+                    const psUnit = bill.psUnits.find(u => u.psId === ext.unitId);
+                    if (psUnit && Array.isArray(psUnit.players)) {
+                        activePlayers = psUnit.players.length;
+                    }
+                }
+
+                for (let m = 0; m < extMinutes; m++) {
+                    const currentMinute = new Date(extStart.getTime() + m * 60000);
+                    const hour = currentMinute.getHours();
+
+                    const rate = bill.type === 'pc'
+                        ? getRateForPC(hour)
+                        : getRateForPS(hour, activePlayers);
+
+                    const cost = bill.type === 'pc'
+                        ? rate / 60
+                        : (rate / 60) * activePlayers;
+
+                    extensionAmount += cost;
+
+                    console.log(`[Extension-${ext.unitId || '??'}] ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
+                }
+            }
+
+            console.log(`🧾 Total Extension Billing: ₹${extensionAmount.toFixed(2)}`);
+            totalAmount += extensionAmount;
+        }
+
+
         totalAmount = Math.round(totalAmount);
 
         const totalPaid = Number(cash) + Number(upi) + Number(wallet) + Number(loyaltyPoints) + Number(discount);
