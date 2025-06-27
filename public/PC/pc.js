@@ -2,12 +2,12 @@ const token = localStorage.getItem("token")
 
 if (!token) {
   alert("Unauthorized. Please log in first.")
-  window.location.href = "login.html"
+  window.location.href = "../login/login.html"
 }
 function logout() {
   if (confirm("Are you sure you want to logout?")) {
     localStorage.removeItem("token")
-    window.location.href = "login.html"
+    window.location.href = "../login/login.html"
   }
 }
 

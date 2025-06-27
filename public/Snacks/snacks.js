@@ -2,12 +2,12 @@ const token = localStorage.getItem('token');
 
 if (!token) {
     alert('Unauthorized access. Please log in first.');
-    window.location.href = 'login.html'; // Redirect to login page
+    window.location.href = '../login/login.html'; // Redirect to login page
 }
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('token');
-        window.location.href = 'login.html';
+        window.location.href = '../login/login.html';
     }
 }
 // Global variables
