@@ -65,12 +65,56 @@ const createBill = async (req, res) => {
         if (!Array.isArray(pcUnits) || pcUnits.length === 0) {
             console.log("ℹ️ No PC units to bill.");
         } else {
+            let crossesElevenAM = false;
+            let crossesTenPM = false;
+            let crossMinuteLate = null;
+            let crossMinuteEarly = null;
+
             for (const [i, unit] of pcUnits.entries()) {
                 const duration = unit.duration;
+                // Calculate start and end time for this unit
+                const unitStart = nowIST; // assuming all units start at the same time
+                const unitEnd = getISTMinuteOffsetDate(unitStart, duration);
+
+                // 10 PM cutoff
+                const tenPM = new Date(unitStart);
+                tenPM.setHours(22, 0, 0, 0); // 22:00 IST
+
+                const nineAM = new Date(unitStart);
+                nineAM.setHours(9, 0, 0, 0); // 9:00 AM
+
+                const elevenAM = new Date(unitStart);
+                elevenAM.setHours(11, 0, 0, 0); // 11:00 AM
+
+                // Set flag if this unit crosses 10 PM
+                if (unitStart < tenPM && unitEnd > tenPM) {
+                    crossesTenPM = true;
+                    crossMinuteLate = unitStart.getMinutes();
+                    console.log(`⚠️ [PC-${i + 1}] crosses 10 PM`);
+                }
+
+                // Check if booking is during happy hours and crosses 11 AM
+                if (unitStart >= nineAM && unitStart < elevenAM && unitEnd > elevenAM) {
+                    crossesElevenAM = true;
+                    crossMinuteEarly = unitStart.getMinutes(); // Save 15 if 9:15 AM
+                    console.log(`🎉 [PC-${i + 1}] crosses 11 AM from happy hours — start minute = ${crossMinuteEarly}`);
+                }
+
                 for (let m = 0; m < duration; m++) {
                     const currentMinute = getISTMinuteOffsetDate(nowIST, m);
                     const hour = currentMinute.getHours();
-                    const rate = getRateForPC(hour);
+                    let rate = getRateForPC(hour);
+                    const minute = currentMinute.getMinutes();
+                    // 🔁 Apply override if we crossed 10 PM and still within the normal minute window
+                    if (crossesTenPM && hour === 22 && minute <= crossMinuteLate) {
+                        rate = 50; // Override to ₹50/hr
+                        console.log(`🟡 [PC-${i + 1}] ${currentMinute.toLocaleTimeString("en-IN")} → Overridden rate: ₹50/hr`);
+                    }
+                    // Override for Happy Hours before 11 AM if crossing
+                    if (crossesElevenAM && hour === 11 && minute <= crossMinuteEarly) {
+                        rate = 40; // Example happy hour override rate
+                        console.log(`💚 [PC-${i + 1}] ${currentMinute.toLocaleTimeString("en-IN")} → Happy Hour Override ₹40/hr`);
+                    }
                     const cost = rate / 60;
                     totalAmount += cost;
                     console.log(`[PC-${i + 1}] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | ₹${rate}/hr → ₹${cost.toFixed(2)}`);
@@ -82,12 +126,12 @@ const createBill = async (req, res) => {
 
         // --- PS BILLING ---
         console.log("🟢 Starting PS Billing:");
-        const psTimeline = {}; // key: minute offset → number of active players
+        // const psTimeline = {}; // key: minute offset → number of active players
         let normalizedPSUnits = [];
         if (!Array.isArray(psUnits) || psUnits.length === 0) {
             console.log("ℹ️ No PS units to bill.");
         } else {
-            // 🔁 Create a normalized version instead of modifying the original
+            // 🔁 Normalize: players array for each unit
             normalizedPSUnits = psUnits.map(unit => {
                 const playerCount = Number(unit.players) || 1;
                 const duration = Number(unit.duration) || 0;
@@ -113,26 +157,82 @@ const createBill = async (req, res) => {
                     continue;
                 }
 
+                const unitStart = nowIST; // all units start at booking time
+                const unitEnd = getISTMinuteOffsetDate(unitStart, unit.duration);
+
+                const tenPM = new Date(unitStart);
+                tenPM.setHours(22, 0, 0, 0);
+
+                const nineAM = new Date(unitStart);
+                nineAM.setHours(9, 0, 0, 0);
+
+                const elevenAM = new Date(unitStart);
+                elevenAM.setHours(11, 0, 0, 0);
+
+                let crossesTenPM = false;
+                let crossesElevenAM = false;
+                let crossMinute = null;
+
+                // Check if unit crosses 10 PM
+                if (unitStart < tenPM && unitEnd > tenPM) {
+                    crossesTenPM = true;
+                    crossMinute = unitStart.getMinutes();
+                    console.log(`⚠️ [PS-${i + 1}] crosses 10 PM — start minute = ${crossMinute}`);
+                }
+
+                // Check if unit starts in happy hour and crosses 11 AM
+                if (unitStart >= nineAM && unitStart < elevenAM && unitEnd > elevenAM) {
+                    crossesElevenAM = true;
+                    crossMinute = unitStart.getMinutes();
+                    console.log(`🎉 [PS-${i + 1}] crosses 11 AM from happy hours — start minute = ${crossMinute}`);
+                }
+
+                const unitTimeline = {};
+
+                // Fill unit-specific timeline
                 for (const player of unit.players) {
                     const playerDuration = player.duration;
                     for (let m = 0; m < playerDuration; m++) {
-                        psTimeline[m] = (psTimeline[m] || 0) + 1;
+                        unitTimeline[m] = (unitTimeline[m] || 0) + 1;
                     }
                 }
-            }
 
-            for (const [minuteStr, activePlayers] of Object.entries(psTimeline)) {
-                const m = parseInt(minuteStr, 10);
-                const currentMinute = getISTMinuteOffsetDate(nowIST, m);
-                const hour = currentMinute.getHours();
-                const rate = getRateForPS(hour, activePlayers);
-                const cost = (rate / 60) * activePlayers;
-                totalAmount += cost;
-                console.log(`[PS] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
+                // Calculate billing for this unit
+                for (const [minuteStr, activePlayers] of Object.entries(unitTimeline)) {
+                    const m = parseInt(minuteStr, 10);
+                    const currentMinute = getISTMinuteOffsetDate(unitStart, m);
+                    const hour = currentMinute.getHours();
+                    const minute = currentMinute.getMinutes();
+
+                    let rate = getRateForPS(hour, activePlayers);
+
+                    // 10 PM override
+                    if (crossesTenPM && hour === 22 && minute <= crossMinute) {
+                        switch (activePlayers) {
+                            case 1: rate = 100; break;
+                            case 2: rate = 60; break;
+                            case 3: rate = 50; break;
+                            default: rate = 40; break; // 4 or more
+                        }
+                        console.log(`🟡 [PS-${i + 1}] ${currentMinute.toLocaleTimeString("en-IN")} → 10PM Override ₹50/hr`);
+                    }
+
+                    // Happy hour override
+                    if (crossesElevenAM && hour === 11 && minute <= crossMinute) {
+                        rate = 40;
+                        console.log(`💚 [PS-${i + 1}] ${currentMinute.toLocaleTimeString("en-IN")} → Happy Hour Override ₹40/hr`);
+                    }
+
+                    const cost = (rate / 60) * activePlayers;
+                    totalAmount += cost;
+
+                    console.log(`[PS-${i + 1}] Minute: ${currentMinute.toLocaleTimeString("en-IN")} | Hr: ${hour} | Players: ${activePlayers} | ₹${rate}/pp/hr → ₹${cost.toFixed(2)}`);
+                }
             }
 
             console.log(`🧮 Total PS Amount: ₹${totalAmount.toFixed(2)}\n`);
         }
+
 
         totalAmount = Math.round(totalAmount);
         const billData = {
