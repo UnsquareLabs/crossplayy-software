@@ -13,6 +13,12 @@ body {
     overflow-x: hidden;
 }
 
+.extension-note {
+    font-size: 0.75em;
+    color: #888;
+    margin-top: 4px;
+}
+
 .pc-unit-row {
     display: flex;
     gap: 10px;

@@ -167,7 +167,15 @@ function renderBills(bills) {
         <tr>
             <td>${bill.userName}</td>
             <td>${bill.contactNo}</td>
-            <td>${formatUnits(bill)}</td>
+            <td>
+  ${formatUnits(bill)}
+  ${
+    Array.isArray(bill.extensions) && bill.extensions.length > 0
+      ? `<div class="extension-note">+${bill.extensions.reduce((sum, ext) => sum + ext.minutes, 0)} min extended</div>`
+      : ''
+  }
+</td>
+
             <td class="snacks-cell">
   ${bill.snacks && bill.snacks.length > 0
             ? bill.snacks.map(s => `<span>${s.name}${s.quantity}(${s.price})</span>`).join(' ')
