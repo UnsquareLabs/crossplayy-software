@@ -352,6 +352,18 @@ async function saveEditedPrebooking() {
   // const pcUnitsRaw = document.getElementById("editPcUnits").value.trim();
   // const pcUnits = pcUnitsRaw ? pcUnitsRaw.split(",").map(u => u.trim()) : [];
   // const psUnits = 0
+  const nameRegex = /^[A-Za-z\s]+$/;
+  const phoneRegex = /^\d{10}$/;
+
+  if (!nameRegex.test(name)) {
+    alert("❌ Customer name must only contain letters and spaces.");
+    return;
+  }
+
+  if (!phoneRegex.test(contact)) {
+    alert("❌ Contact number must be exactly 10 digits.");
+    return;
+  }
 
   if (!name || !contactNo || !scheduledDate || !duration) {
     alert("Please fill in all required fields")
@@ -1499,16 +1511,23 @@ function cancelSelection() {
 
 async function bookSelectedPCs() {
   const bookButton = document.getElementById("bookButton")
-  bookButton.disabled = true
+  // bookButton.disabled = true
 
   const hours = Number.parseFloat(document.getElementById("hoursSelect").value)
   const userName = document.getElementById("userName").value.trim()
   const contactNumber = document.getElementById("contactNumber").value.trim()
 
-  if (!userName || !contactNumber) {
-    alert("Please fill in all fields")
-    bookButton.disabled = false
-    return
+  const nameRegex = /^[A-Za-z\s]+$/;
+  const phoneRegex = /^\d{10}$/;
+
+  if (!nameRegex.test(userName)) {
+    alert("❌ User name must only contain letters and spaces.");
+    return;
+  }
+
+  if (!phoneRegex.test(contactNumber)) {
+    alert("❌ Contact number must be exactly 10 digits.");
+    return;
   }
 
   const duration = hours * 60

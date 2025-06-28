@@ -149,13 +149,16 @@
             <div class="edit-prebooking-form">
                 <div class="form-group">
                     <label class="form-label">Customer Name</label>
-                    <input type="text" class="form-input" id="editName" placeholder="Enter customer name">
+                    <input type="text" class="form-input" id="editName" placeholder="Enter customer name"
+                        pattern="^[A-Za-z\s]+$" title="Name must only contain letters and spaces" required>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Contact Number</label>
-                    <input type="tel" class="form-input" id="editContactNo" placeholder="Enter contact number">
+                    <input type="tel" class="form-input" id="editContactNo" placeholder="Enter contact number"
+                        pattern="^\d{10}$" title="Enter a 10-digit phone number" required>
                 </div>
+
 
                 <div class="form-group">
                     <label class="form-label">Scheduled Date & Time</label>
@@ -261,12 +264,16 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">User Name</label>
-                    <input type="text" class="form-input" id="userName" placeholder="Enter your name">
+                    <input type="text" class="form-input" id="userName" placeholder="Enter your name"
+                        pattern="^[A-Za-z\s]+$" title="Name must only contain letters and spaces" required>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Contact Number</label>
-                    <input type="tel" class="form-input" id="contactNumber" placeholder="Enter your contact number">
+                    <input type="tel" class="form-input" id="contactNumber" placeholder="Enter your contact number"
+                        pattern="^\d{10}$" title="Enter a valid 10-digit contact number" required>
                 </div>
+
 
                 <!-- Prebooking Section -->
                 <div class="prebooking-section" id="prebookingSection" style="display: none;">
