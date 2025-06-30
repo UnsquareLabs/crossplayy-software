@@ -28,10 +28,12 @@ const billSchema = new mongoose.Schema({
       duration: {
         type: Number // in minutes
       },
-      players: {
-        type: Number,
-        default: 1
-      }
+      players: [
+        {
+          playerNo: Number,
+          duration: Number // duration this player used the PS
+        }
+      ]
     }
   ],
   gamingTotal: {
@@ -97,7 +99,14 @@ const billSchema = new mongoose.Schema({
   billedBy: {
     type: String,
     required: true
-  }
+  },
+  extensions: [
+    {
+      unitId: { type: String, required: true },
+      minutes: { type: Number, required: true },
+      extendedAt: { type: Date, default: Date.now }
+    }
+  ]
 });
 
 module.exports = mongoose.model('Bill', billSchema);

@@ -36,13 +36,13 @@
             <div class="menu-subtitle">Gaming Portal</div>
         </div>
         <div class="menu-items">
-            <a href="pc.html" class="menu-item">🎮 PC</a>
-            <a href="ps.html" class="menu-item ">🎮 PS5</a>
-            <a href="snacks.html" class="menu-item">🍿 Snacks</a>
-            <a href="PBills.html" class="menu-item">💰 Paid Bills</a>
-            <a href="editLogs.html" class="menu-item">📋 Edit logs</a>
-            <a href="customer.html" class="menu-item">👥 Customers</a>
-            <a href="analytics.html" class="menu-item" active>📊 analytics</a>
+            <a href="../PC/pc.html" class="menu-item">🎮 PC</a>
+            <a href="../PS/ps.html" class="menu-item ">🎮 PS5</a>
+            <a href="../Snacks/snacks.html" class="menu-item">🍿 Snacks</a>
+            <a href="../PBills/PBills.html" class="menu-item">💰 Paid Bills</a>
+            <a href="../editLogs/editLogs.html" class="menu-item">📋 Edit logs</a>
+            <a href="../customer/customer.html" class="menu-item">👥 Customers</a>
+            <a href="../analytics/analytics.html" class="menu-item" active>📊 analytics</a>
             <a href="#" class="menu-item" onclick="logout()">🚪 Logout</a>
         </div>
     </nav>
@@ -51,7 +51,7 @@
     <header class="header">
         <div class="header-content">
             <div class="header-logo">
-                <img src="assets/image.png" alt="Crossplay Logo" class="logo-image">
+                <img src="../assets/image.png" alt="Crossplay Logo" class="logo-image">
             </div>
             <div class="logo-text">Analytics Dashboard</div>
         </div>
@@ -62,8 +62,8 @@
         <!-- Analytics Controls -->
         <div class="controls-container">
             <div class="controls-header">
-                <h3>📊 Earnings Analytics</h3>
-                <p>Analyze your gaming center's revenue performance</p>
+                <h3>📊 Complete Analytics</h3>
+                <p>Generate comprehensive earnings breakdown and payment method analytics</p>
             </div>
 
             <div class="controls-grid">
@@ -100,27 +100,77 @@
         <!-- Analytics Results -->
         <div class="results-container" id="resultsContainer" style="display: none;">
             <div class="results-header">
-                <h3>📈 Revenue Analysis</h3>
+                <h3 id="resultsTitle">📈 Complete Analytics</h3>
+
+                <!-- Chart Toggle Buttons -->
+                <div class="chart-toggle-container">
+                    <div class="chart-toggle-buttons">
+                        <button id="earningsChartBtn" class="chart-toggle-btn active" data-type="earnings">
+                            <span class="toggle-icon">💰</span>
+                            Earnings Breakdown
+                        </button>
+                        <button id="paymentChartBtn" class="chart-toggle-btn" data-type="payment">
+                            <span class="toggle-icon">💳</span>
+                            Cash vs UPI
+                        </button>
+                    </div>
+                </div>
+
                 <div class="stats-summary" id="statsSummary">
-                    <div class="stat-card">
-                        <div class="stat-icon">💰</div>
-                        <div class="stat-content">
-                            <div class="stat-label">Total Revenue</div>
-                            <div class="stat-value" id="totalRevenue">₹0</div>
+                    <!-- Earnings Stats -->
+                    <div class="earnings-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Total Revenue</div>
+                                <div class="stat-value" id="totalRevenue">₹0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Average</div>
+                                <div class="stat-value" id="avgRevenue">₹0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Peak</div>
+                                <div class="stat-value" id="peakRevenue">₹0</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📊</div>
-                        <div class="stat-content">
-                            <div class="stat-label">Average</div>
-                            <div class="stat-value" id="avgRevenue">₹0</div>
+
+                    <!-- Payment Method Stats -->
+                    <div class="payment-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">💵</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Total Cash</div>
+                                <div class="stat-value" id="totalCash">₹0</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">🎯</div>
-                        <div class="stat-content">
-                            <div class="stat-label">Peak</div>
-                            <div class="stat-value" id="peakRevenue">₹0</div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📱</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Total UPI</div>
+                                <div class="stat-value" id="totalUPI">₹0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Cash Percentage</div>
+                                <div class="stat-value" id="cashPercentage">0%</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-content">
+                                <div class="stat-label">UPI Percentage</div>
+                                <div class="stat-value" id="upiPercentage">0%</div>
+                            </div>
                         </div>
                     </div>
                 </div>

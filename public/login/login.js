@@ -86,7 +86,7 @@ document.getElementById('loginForm').addEventListener('submit', async function (
 
       setTimeout(() => {
         // alert('Login successful! Redirecting to game lobby...');
-        window.location.href = 'pc.html'; // actual redirect
+        window.location.href = '../PC/pc.html'; // actual redirect
       }, 3000);
     }, 1500);
 

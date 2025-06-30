@@ -35,13 +35,13 @@
             <div class="menu-subtitle">Gaming Portal</div>
         </div>
         <div class="menu-items">
-            <a href="pc.html" class="menu-item">🎮 PC</a>
-            <a href="ps.html" class="menu-item ">🎮 PS5</a>
-            <a href="snacks.html" class="menu-item">🍿 Snacks</a>
-            <a href="PBills.html" class="menu-item">💰 Paid Bills</a>
-            <a href="editLogs.html" class="menu-item">📋 Edit logs</a>
-            <a href="customer.html" class="menu-item" active>👥 Customers</a>
-            <a href="analytics.html" class="menu-item">📊 analytics</a>
+            <a href="../PC/pc.html" class="menu-item">🎮 PC</a>
+            <a href="../PS/ps.html" class="menu-item ">🎮 PS5</a>
+            <a href="../Snacks/snacks.html" class="menu-item">🍿 Snacks</a>
+            <a href="../PBills/PBills.html" class="menu-item">💰 Paid Bills</a>
+            <a href="../editLogs/editLogs.html" class="menu-item">📋 Edit logs</a>
+            <a href="../customer/customer.html" class="menu-item active">👥 Customers</a>
+            <a href="../analytics/analytics.html" class="menu-item">📊 analytics</a>
             <a href="#" class="menu-item" onclick="logout()">🚪 Logout</a>
         </div>
     </nav>
@@ -50,7 +50,7 @@
     <header class="header">
         <div class="header-content">
             <div class="header-logo">
-                <img src="assets/image.png" alt="Crossplay Logo" class="logo-image">
+                <img src="../assets/image.png" alt="Crossplay Logo" class="logo-image">
             </div>
             <div class="logo-text">Customer Database Management</div>
         </div>
@@ -58,6 +58,31 @@
 
     <!-- Main Container -->
     <div class="main-container">
+        <!-- Analytics Cards -->
+        <div class="analytics-container">
+            <div class="analytics-card">
+                <div class="analytics-icon">👥</div>
+                <div class="analytics-content">
+                    <div class="analytics-number" id="totalMembers">0</div>
+                    <div class="analytics-label">Total Members</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="analytics-icon">💰</div>
+                <div class="analytics-content">
+                    <div class="analytics-number" id="totalWallet">₹0</div>
+                    <div class="analytics-label">Total Wallet Credit</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="analytics-icon">⭐</div>
+                <div class="analytics-content">
+                    <div class="analytics-number" id="totalLoyalty">0</div>
+                    <div class="analytics-label">Total Loyalty Points</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Customers Table -->
         <div class="table-container">
             <div class="table-header">
@@ -91,6 +116,21 @@
                     <!-- Customers will be populated here -->
                 </tbody>
             </table>
+
+            <!-- Pagination Controls -->
+            <div class="pagination-container" id="paginationContainer">
+                <div class="pagination-info">
+                    <span id="paginationInfo">Showing 0-0 of 0 customers</span>
+                </div>
+                <!-- <div class="pagination-controls">
+                    <button class="pagination-btn" id="prevBtn" onclick="changePage(-1)">Previous</button>
+                    <span class="page-numbers" id="pageNumbers"></span>
+                    <button class="pagination-btn" id="nextBtn" onclick="changePage(1)">Next</button>
+                </div> -->
+                <div class="load-more-container">
+                    <button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreCustomers()">Load More</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -101,12 +141,16 @@
             <form id="customerForm">
                 <div class="form-group">
                     <label for="customerName">Customer Name</label>
-                    <input type="text" id="customerName" required>
+                    <input type="text" id="customerName" required pattern="[A-Za-z\s]+"
+                        title="Name must contain only letters and spaces">
                 </div>
+
                 <div class="form-group">
                     <label for="customerContact">Contact Number</label>
-                    <input type="text" id="customerContact" required>
+                    <input type="text" id="customerContact" required pattern="\d{10}" maxlength="10"
+                        title="Contact number must be exactly 10 digits">
                 </div>
+
                 <div class="form-group">
                     <label for="customerLoyalty">Loyalty Points</label>
                     <input type="number" id="customerLoyalty" min="0" value="0">

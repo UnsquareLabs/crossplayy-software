@@ -2,20 +2,25 @@ const token = localStorage.getItem('token');
 
 if (!token) {
     alert('Unauthorized access. Please log in first.');
-    window.location.href = 'login.html'; // Redirect to login page
+    window.location.href = '../login/login.html'; // Redirect to login page
 
 
     function logout() {
         if (confirm('Are you sure you want to logout?')) {
             localStorage.removeItem('token');
-            window.location.href = 'login.html';
+            window.location.href = '../login/login.html';
         }
     }
 }
+
 // Global variables
 let customersData = [];
+let filteredCustomers = [];
 let currentEditingId = null;
 let isEditMode = false;
+let currentPage = 1;
+let customersPerPage = 30;
+let displayedCustomers = 0;
 
 // Audio context for sound effects
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -133,41 +138,103 @@ function getLoyaltyBadge(points) {
     return 'New';
 }
 
-// Render customers table
-function renderCustomers(customers) {
+// Update analytics
+function updateAnalytics() {
+    const totalMembers = customersData.length;
+    const totalWallet = customersData.reduce((sum, customer) => sum + (customer.walletCredit || 0), 0);
+    const totalLoyalty = customersData.reduce((sum, customer) => sum + (customer.loyaltyPoints || 0), 0);
+
+    document.getElementById('totalMembers').textContent = totalMembers.toLocaleString();
+    document.getElementById('totalWallet').textContent = `₹${totalWallet.toLocaleString()}`;
+    document.getElementById('totalLoyalty').textContent = totalLoyalty.toLocaleString();
+}
+
+// Sort customers by member since (newest first)
+function sortCustomersByDate(customers) {
+    return customers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+// Render customers table with lazy loading
+function renderCustomers(customers, append = false) {
     const tbody = document.getElementById('customersTableBody');
 
-    if (customers.length === 0) {
+    if (customers.length === 0 && !append) {
         tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 40px; color: #666;">
-                            No customers found. Add your first customer!
-                        </td>
-                    </tr>
-                `;
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #666;">
+                    No customers found. Add your first customer!
+                </td>
+            </tr>
+        `;
+        updatePaginationInfo(0, 0, 0);
         return;
     }
 
-    tbody.innerHTML = customers.map(customer => `
-                <tr>
-                    <td>${customer.name}</td>
-                    <td>${customer.contactNo}</td>
-                    <td class="loyalty-points">
-                        ${customer.loyaltyPoints} 
-                    </td>
-                    <td>${formatDate(customer.createdAt)}</td>
-                    <td class="Wallet-Credit">
-                        ${customer.walletCredit} 
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="action-btn edit-btn" onclick="editCustomer('${customer._id}')">Edit</button>
-                            <button class="action-btn delete-btn" onclick="deleteCustomer('${customer._id}')">Delete</button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+    const startIndex = append ? displayedCustomers : 0;
+    const endIndex = Math.min(startIndex + customersPerPage, customers.length);
+    const customersToShow = customers.slice(startIndex, endIndex);
+
+    if (!append) {
+        tbody.innerHTML = '';
+        displayedCustomers = 0;
+    }
+
+    const rows = customersToShow.map(customer => `
+        <tr>
+            <td>${customer.name}</td>
+            <td>${customer.contactNo}</td>
+            <td class="loyalty-points">
+                ${customer.loyaltyPoints} 
+            </td>
+            <td>${formatDate(customer.createdAt)}</td>
+            <td class="wallet-credit">
+                ₹${customer.walletCredit} 
+            </td>
+            <td>
+                <div class="action-buttons">
+                    <button class="action-btn edit-btn" onclick="editCustomer('${customer._id}')">Edit</button>
+                    <button class="action-btn delete-btn" onclick="deleteCustomer('${customer._id}')">Delete</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+
+    tbody.insertAdjacentHTML('beforeend', rows);
+    displayedCustomers = endIndex;
+
+    updatePaginationInfo(Math.min(displayedCustomers, customers.length), customers.length, customers.length);
+    updateLoadMoreButton(customers.length);
 }
+
+// Update pagination info
+function updatePaginationInfo(showing, total, filtered) {
+    const paginationInfo = document.getElementById('paginationInfo');
+    paginationInfo.textContent = `Showing ${showing} of ${filtered} customers`;
+}
+
+// Update load more button
+function updateLoadMoreButton(totalCustomers) {
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    if (displayedCustomers >= totalCustomers) {
+        loadMoreBtn.style.display = 'none';
+    } else {
+        loadMoreBtn.style.display = 'block';
+    }
+}
+
+// Load more customers
+function loadMoreCustomers() {
+    playSound(600, 0.2);
+    const customersToRender = filteredCustomers.length > 0 ? filteredCustomers : customersData;
+    renderCustomers(customersToRender, true);
+    addTableEffects();
+}
+
+// Change page (for future pagination implementation)
+// function changePage(direction) {
+//     playSound(400, 0.1);
+//     // This can be implemented for traditional pagination if needed
+// }
 
 // Fetch and render customers
 async function fetchAndRenderCustomers() {
@@ -184,17 +251,22 @@ async function fetchAndRenderCustomers() {
         }
 
         customersData = await res.json();
+        customersData = sortCustomersByDate(customersData);
+        filteredCustomers = [...customersData];
+
+        updateAnalytics();
         renderCustomers(customersData);
+        addTableEffects();
     } catch (error) {
         console.error('Error fetching customers:', error);
         const tbody = document.getElementById('customersTableBody');
         tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 40px; color: red;">
-                            Failed to load customers. Please check your connection.
-                        </td>
-                    </tr>
-                `;
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: red;">
+                    Failed to load customers. Please check your connection.
+                </td>
+            </tr>
+        `;
     }
 }
 
@@ -203,11 +275,14 @@ function setupSearch() {
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', function () {
         const searchTerm = this.value.toLowerCase();
-        const filteredCustomers = customersData.filter(customer =>
+        filteredCustomers = customersData.filter(customer =>
             customer.name.toLowerCase().includes(searchTerm) ||
             customer.contactNo.includes(searchTerm)
         );
+
+        displayedCustomers = 0;
         renderCustomers(filteredCustomers);
+        addTableEffects();
         playSound(400, 0.1);
     });
 }
@@ -286,6 +361,23 @@ function closeModal() {
 // Handle form submission
 document.getElementById('customerForm').addEventListener('submit', async function (e) {
     e.preventDefault();
+    const name = document.getElementById('customerName').value.trim();
+    const contact = document.getElementById('customerContact').value.trim();
+
+    const nameRegex = /^[A-Za-z\s]+$/;
+    const contactRegex = /^\d{10}$/;
+
+    if (!nameRegex.test(name)) {
+        alert("Please enter a valid name (letters and spaces only).");
+        e.preventDefault();
+        return;
+    }
+
+    if (!contactRegex.test(contact)) {
+        alert("Please enter a valid 10-digit contact number.");
+        e.preventDefault();
+        return;
+    }
 
     const customerData = {
         name: document.getElementById('customerName').value.trim(),
@@ -321,11 +413,11 @@ document.getElementById('customerForm').addEventListener('submit', async functio
             throw new Error(errorData.message || 'Failed to save customer');
         }
 
+        const result = await res.json();
         await fetchAndRenderCustomers();
         closeModal();
         playSound(800, 0.3);
-        const result = await res.json(); // ✅ Moved here, so it’s always defined
-        // console.log(result.message);
+
         if (result.message === 'Customer phone no already exists in db') {
             showMessage('ℹ Customer already exists', 'info');
         } else {
@@ -342,18 +434,20 @@ document.getElementById('customerForm').addEventListener('submit', async functio
 function showMessage(message, type) {
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'success' ? 'linear-gradient(45deg, #28a745, #20c997)' : 'linear-gradient(45deg, #dc3545, #e74c3c)'};
-                color: white;
-                padding: 15px 25px;
-                border-radius: 10px;
-                z-index: 1001;
-                animation: slideIn 0.3s ease;
-                max-width: 300px;
-                word-wrap: break-word;
-            `;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? 'linear-gradient(45deg, #28a745, #20c997)' :
+            type === 'info' ? 'linear-gradient(45deg, #17a2b8, #20c997)' :
+                'linear-gradient(45deg, #dc3545, #e74c3c)'};
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        z-index: 1001;
+        animation: slideIn 0.3s ease;
+        max-width: 300px;
+        word-wrap: break-word;
+    `;
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
 
@@ -400,15 +494,16 @@ function initializePage() {
     // Show loading
     document.getElementById('loading').style.display = 'block';
     document.getElementById('customersTable').style.display = 'none';
+    document.getElementById('paginationContainer').style.display = 'none';
 
     // Simulate loading delay
     setTimeout(() => {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('customersTable').style.display = 'table';
+        document.getElementById('paginationContainer').style.display = 'block';
 
         fetchAndRenderCustomers();
         setupSearch();
-        addTableEffects();
         playSound(800, 0.3);
     }, 1500);
 }

@@ -11,6 +11,7 @@ const customerRoutes = require('./routes/customerRoutes');
 const snackRoutes = require('./routes/snacksRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const editLogsRoutes = require('./routes/editLogsRoutes');
+const prebook = require('./routes/prebookRoutes');
 
 // Load env variables
 dotenv.config();
@@ -36,8 +37,9 @@ app.use('/api/bills', billRoutes);
 app.use('/api/customer', customerRoutes );
 app.use('/api/snacks', snackRoutes);
 app.use('/api/analytics',analyticsRoutes);
-app.use('/api/analytics',analyticsRoutes);
+app.use('/api/prebook', prebook);
 app.use('/api/edit', editLogsRoutes);
+// console.log("prebook routes set");
 
 // Basic error handling middleware (optional)
 app.use((err, req, res, next) => {

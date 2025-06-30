@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CROSSPLAYY - PS5 Gaming Lounge</title>
+    <title>CROSSPLAY - PS5 Gaming Lounge</title>
     <link rel="stylesheet" href="ps.css">
 </head>
 
@@ -30,17 +30,17 @@
     <!-- Side Menu -->
     <nav class="side-menu" id="sideMenu">
         <div class="menu-header">
-            <div class="menu-logo">CROSSPLAYY</div>
+            <div class="menu-logo">CROSSPLAY</div>
             <div class="menu-subtitle">Gaming Portal</div>
         </div>
         <div class="menu-items">
-            <a href="pc.html" class="menu-item ">🎮 PC</a>
-            <a href="ps.html" class="menu-item" active>🎮 PS5</a>
-            <a href="snacks.html" class="menu-item">🍿 Snacks</a>
-            <a href="PBills.html" class="menu-item">💰 Paid Bills</a>
-            <a href="editLogs.html" class="menu-item">📋 Edit logs</a>
-            <a href="customer.html" class="menu-item">👥 Customers</a>
-            <a href="analytics.html" class="menu-item">📊 Analytics</a>
+            <a href="../pc/pc.html" class="menu-item">🎮 PC</a>
+            <a href="../ps/ps.html" class="menu-item " active>🎮 PS5</a>
+            <a href="../snacks/snacks.html" class="menu-item">🍿 Snacks</a>
+            <a href="../PBills/PBills.html" class="menu-item">💰 Paid Bills</a>
+            <a href="../editLogs/editLogs.html" class="menu-item">📋 Edit logs</a>
+            <a href="../customer/customer.html" class="menu-item">👥 Customers</a>
+            <a href="../analytics/analytics.html" class="menu-item">📊 analytics</a>
             <a href="#" class="menu-item" onclick="logout()">🚪 Logout</a>
         </div>
     </nav>
@@ -49,9 +49,14 @@
     <header class="header">
         <div class="header-content">
             <div class="header-logo">
-                <img src="assets/image.png" alt="Crossplay Logo" class="logo-image">
+                <img src="../assets/image.png" alt="Crossplay Logo" class="logo-image">
             </div>
-            <div class="logo-text">CROSSPLAYY PS5 LOUNGE</div>
+            <div class="logo-text">CROSSPLAY PS5 LOUNGE</div>
+            <!-- Subtle Prebooking Button in Header -->
+            <button class="prebooking-header-btn" onclick="openPrebookingModal()" title="Manage Prebookings">
+                <span class="prebooking-icon">📅</span>
+                <span class="prebooking-count" id="prebookingCount">0</span>
+            </button>
         </div>
     </header>
 
@@ -73,6 +78,21 @@
                         <div class="status-number" id="occupiedCount">0</div>
                         <div class="status-label">Occupied</div>
                     </div>
+                    <!-- Subtle Prebooking Status Card -->
+                    <div class="status-card prebooking" onclick="openPrebookingModal()" style="cursor: pointer;">
+                        <div class="status-number" id="prebookingStatusCount">0</div>
+                        <div class="status-label">Prebookings</div>
+                    </div>
+                </div>
+                <!-- PS Controls -->
+                <div class="ps-controls"
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2
+                        style="margin: 0; background: linear-gradient(45deg, #007bff, #28a745); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        PS5 Status</h2>
+                    <button id="refreshPSBtn" class="refresh-btn" onclick="refreshPSCards()" title="Refresh PS5 Status">
+                        🔄 Refresh PS5s
+                    </button>
                 </div>
 
                 <!-- PS Grid -->
@@ -86,10 +106,16 @@
                 <div class="bills-section">
                     <div class="bills-header">
                         <span>Unpaid Bills</span>
-                        <button class="add-snacks-btn" onclick="startSnacksWorkflow()">
-                            <span class="snacks-icon">🍿</span>
-                            <span>Add Snacks</span>
-                        </button>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button id="refreshBillsBtn" class="refresh-btn" onclick="refreshUnpaidBills()"
+                                title="Refresh Unpaid Bills">
+                                🔄 Refresh
+                            </button>
+                            <button class="add-snacks-btn" onclick="startSnacksWorkflow()">
+                                <span class="snacks-icon">🍿</span>
+                                <span>Add Snacks</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="unpaidBills">
                         <!-- Bills will be populated by JavaScript -->
@@ -98,6 +124,65 @@
             </div>
         </div>
     </div>
+
+    <!-- Prebooking Management Modal -->
+    <div class="prebooking-modal" id="prebookingModal">
+        <div class="prebooking-content">
+            <div class="prebooking-header">
+                <h3>📅 Manage Prebookings</h3>
+                <button class="close-prebooking-btn" onclick="closePrebookingModal()">✕</button>
+            </div>
+            <div class="prebooking-list" id="prebookingList">
+                <!-- Prebookings will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Prebooking Modal -->
+    <!-- Edit Prebooking Modal -->
+    <div class="edit-prebooking-modal" id="editPrebookingModal">
+        <div class="edit-prebooking-content">
+            <div class="edit-prebooking-header">
+                <h3>🎮 Edit PS Prebooking</h3>
+                <button class="close-edit-prebooking-btn" onclick="closeEditPrebookingModal()">✕</button>
+            </div>
+            <div class="edit-prebooking-form">
+                <div class="form-group">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" class="form-input" id="editName" placeholder="Enter customer name"
+                        pattern="^[A-Za-z\s]+$" title="Name must only contain letters and spaces" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Contact Number</label>
+                    <input type="tel" class="form-input" id="editContactNo" placeholder="Enter contact number"
+                        pattern="^\d{10}$" title="Enter a 10-digit phone number" required>
+                </div>
+
+
+                <div class="form-group">
+                    <label class="form-label">Scheduled Date & Time</label>
+                    <input type="datetime-local" class="form-input" id="editScheduledDate">
+                </div>
+
+                <!-- <div class="form-group">
+                    <label class="form-label">Total Duration (minutes)</label>
+                    <input type="number" class="form-input" id="editDuration" min="30" step="30"
+                        placeholder="Duration in minutes">
+                </div> -->
+
+                <div id="editPsUnitsContainer">
+                    <!-- Dynamically insert PS units + players here -->
+                </div>
+
+                <div class="edit-prebooking-buttons">
+                    <button class="save-prebooking-btn" onclick="saveEditedPrebooking()">Save Changes</button>
+                    <button class="cancel-edit-btn" onclick="closeEditPrebookingModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Bill Selection Modal -->
     <div class="bill-selection-modal" id="billSelectionModal">
@@ -179,14 +264,30 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">User Name</label>
-                    <input type="text" class="form-input" id="userName" placeholder="Enter your name">
+                    <input type="text" class="form-input" id="userName" placeholder="Enter your name"
+                        pattern="^[A-Za-z\s]+$" title="Name must only contain letters and spaces" required>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">Contact Number</label>
-                    <input type="tel" class="form-input" id="contactNumber" placeholder="Enter your contact number">
+                    <input type="tel" class="form-input" id="contactNumber" placeholder="Enter your contact number"
+                        pattern="^\d{10}$" title="Enter a valid 10-digit contact number" required>
                 </div>
-                <button class="book-btn" onclick="bookSelectedPSs()">Book PS5s</button>
-                <button class="cancel-btn" onclick="cancelSelection()">Cancel</button>
+
+
+                <!-- Prebooking Section -->
+                <div class="prebooking-section" id="prebookingSection" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Scheduled Date & Time</label>
+                        <input type="datetime-local" class="form-input" id="scheduledDateTime">
+                    </div>
+                </div>
+
+                <div class="booking-buttons">
+                    <button class="book-btn" id="bookButton" onclick="bookSelectedPSs()">Book Now</button>
+                    <button class="prebook-btn" id="prebookButton" onclick="togglePrebookMode()">📅 Prebook</button>
+                    <button class="cancel-btn" onclick="cancelSelection()">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
