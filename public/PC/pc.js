@@ -346,7 +346,12 @@ async function saveEditedPrebooking() {
 
   const name = document.getElementById("editName").value.trim()
   const contactNo = document.getElementById("editContactNo").value.trim()
-  const scheduledDate = document.getElementById("editScheduledDate").value
+  // const scheduledDate = document.getElementById("editScheduledDate").value
+  // Handle prebooking
+  const localDateTime = document.getElementById("scheduledDateTime").value
+
+  // Convert local datetime string to UTC
+  const scheduledDate = new Date(localDateTime).toISOString();
   const duration = Number.parseInt(document.getElementById("editDuration").value)
   // const pcUnitsRaw = document.getElementById("editPcUnits").value.trim();
   // const pcUnits = pcUnitsRaw ? pcUnitsRaw.split(",").map(u => u.trim()) : [];
@@ -1536,7 +1541,7 @@ async function bookSelectedPCs() {
     const localDateTime = document.getElementById("scheduledDateTime").value
 
     // Convert local datetime string to UTC
-const scheduledDateTime = new Date(localDateTime).toISOString();
+    const scheduledDateTime = new Date(localDateTime).toISOString();
 
 
     if (!scheduledDateTime) {

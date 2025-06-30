@@ -383,8 +383,12 @@ async function saveEditedPrebooking() {
 
     const name = document.getElementById("editName").value.trim()
     const contactNo = document.getElementById("editContactNo").value.trim()
-    const scheduledDate = document.getElementById("editScheduledDate").value
+    // const scheduledDate = document.getElementById("editScheduledDate").value
+    // Handle prebooking
+    const localDateTime = document.getElementById("scheduledDateTime").value
 
+    // Convert local datetime string to UTC
+    const scheduledDate = new Date(localDateTime).toISOString();
 
     const nameRegex = /^[A-Za-z\s]+$/;
     const phoneRegex = /^\d{10}$/;
@@ -1531,8 +1535,12 @@ async function bookSelectedPSs() {
 
     if (isPrebookMode) {
         // Handle prebooking
-        const scheduledDateTime = document.getElementById("scheduledDateTime").value
+        // const scheduledDateTime = document.getElementById("scheduledDateTime").value
+        // Handle prebooking
+        const localDateTime = document.getElementById("scheduledDateTime").value
 
+        // Convert local datetime string to UTC
+        const scheduledDateTime = new Date(localDateTime).toISOString();
         if (!scheduledDateTime) {
             alert("Please select a scheduled date and time for prebooking")
             bookButton.disabled = false
