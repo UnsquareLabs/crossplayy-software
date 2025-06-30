@@ -296,7 +296,7 @@ function getWeekNumber(date) {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
 }
 
-// Process API data and merge with complete time range
+// Process API data and merge with complete time range - Updated for detailed breakdown
 function processAnalyticsData(apiData, completeTimeRange, rangeType, dataType) {
   const dataMap = new Map()
 
@@ -305,21 +305,36 @@ function processAnalyticsData(apiData, completeTimeRange, rangeType, dataType) {
       const hour = new Date(item.time).getHours()
       if (dataType === "earnings") {
         if (dataMap.has(hour)) {
-          dataMap.set(hour, dataMap.get(hour) + item.amount)
+          const existing = dataMap.get(hour)
+          dataMap.set(hour, {
+            loyalty: existing.loyalty + (item.loyalty || 0),
+            wallet: existing.wallet + (item.wallet || 0),
+            // discount: existing.discount + (item.discount || 0),
+            cash: existing.cash + (item.cash || 0),
+            upi: existing.upi + (item.upi || 0),
+            total: existing.total + (item.total || 0),
+          })
         } else {
-          dataMap.set(hour, item.amount)
+          dataMap.set(hour, {
+            loyalty: item.loyalty || 0,
+            wallet: item.wallet || 0,
+            // discount: item.discount || 0,
+            cash: item.cash || 0,
+            upi: item.upi || 0,
+            total: item.total || 0,
+          })
         }
       } else {
         if (dataMap.has(hour)) {
           const existing = dataMap.get(hour)
           dataMap.set(hour, {
-            cash: existing.cash + item.cash,
-            upi: existing.upi + item.upi,
+            cash: existing.cash + (item.cash || 0),
+            upi: existing.upi + (item.upi || 0),
           })
         } else {
           dataMap.set(hour, {
-            cash: item.cash,
-            upi: item.upi,
+            cash: item.cash || 0,
+            upi: item.upi || 0,
           })
         }
       }
@@ -327,11 +342,18 @@ function processAnalyticsData(apiData, completeTimeRange, rangeType, dataType) {
   } else {
     apiData.forEach((item) => {
       if (dataType === "earnings") {
-        dataMap.set(item.label, item.total)
+        dataMap.set(item.label, {
+          loyalty: item.loyalty || 0,
+          wallet: item.wallet || 0,
+          // discount: item.discount || 0,
+          cash: item.cash || 0,
+          upi: item.upi || 0,
+          total: item.total || 0,
+        })
       } else {
         dataMap.set(item.label, {
-          cash: item.cash,
-          upi: item.upi,
+          cash: item.cash || 0,
+          upi: item.upi || 0,
         })
       }
     })
@@ -339,9 +361,22 @@ function processAnalyticsData(apiData, completeTimeRange, rangeType, dataType) {
 
   const processedData = completeTimeRange.map((timeSlot) => {
     if (dataType === "earnings") {
+      const earningsData = dataMap.get(timeSlot.key) || {
+        loyalty: 0,
+        wallet: 0,
+        // discount: 0,
+        cash: 0,
+        upi: 0,
+        total: 0
+      }
       return {
         label: timeSlot.label,
-        value: dataMap.get(timeSlot.key) || 0,
+        loyalty: earningsData.loyalty,
+        wallet: earningsData.wallet,
+        // discount: earningsData.discount,
+        cash: earningsData.cash,
+        upi: earningsData.upi,
+        total: earningsData.total,
         key: timeSlot.key,
       }
     } else {
@@ -469,17 +504,23 @@ async function generateAnalytics() {
   }
 }
 
-// Display Both Analytics Results
+// Display Both Analytics Results - Updated for detailed breakdown
 function displayBothAnalytics() {
   // Calculate earnings statistics
   let totalRevenue = 0
   let maxRevenue = 0
   let nonZeroCount = 0
+  let totalLoyalty = 0
+  let totalWallet = 0
+  let totalDiscount = 0
 
   earningsData.forEach((item) => {
-    totalRevenue += item.value
-    maxRevenue = Math.max(maxRevenue, item.value)
-    if (item.value > 0) nonZeroCount++
+    totalRevenue += item.total
+    maxRevenue = Math.max(maxRevenue, item.total)
+    totalLoyalty += item.loyalty
+    totalWallet += item.wallet
+    // totalDiscount += item.discount
+    if (item.total > 0) nonZeroCount++
   })
 
   const avgRevenue = nonZeroCount > 0 ? totalRevenue / nonZeroCount : 0
@@ -507,11 +548,6 @@ function displayBothAnalytics() {
   document.getElementById("cashPercentage").textContent = `${cashPercentage}%`
   document.getElementById("upiPercentage").textContent = `${upiPercentage}%`
 
-  // Remove these lines:
-  // Show both stats sections
-  // document.querySelector(".earnings-stats").style.display = "grid"
-  // document.querySelector(".payment-stats").style.display = "grid"
-
   // Display the chart based on current selection
   if (currentChartType === "earnings") {
     displayEarningsChart()
@@ -529,7 +565,7 @@ function displayEarningsChart() {
   document.querySelector(".earnings-stats").style.display = "grid"
   document.querySelector(".payment-stats").style.display = "none"
 
-  createEarningsChart(earningsData, currentRangeType)
+  createStackedEarningsChart(earningsData, currentRangeType)
 }
 
 // Display Payment Chart
@@ -541,8 +577,8 @@ function displayPaymentChart() {
   createPaymentChart(paymentData, currentRangeType)
 }
 
-// Create Earnings Chart
-function createEarningsChart(data, rangeType) {
+// Create Stacked Earnings Chart - New implementation
+function createStackedEarningsChart(data, rangeType) {
   const ctx = document.getElementById("analyticsChart").getContext("2d")
 
   if (chartInstance) {
@@ -550,11 +586,11 @@ function createEarningsChart(data, rangeType) {
   }
 
   const labels = data.map((item) => item.label)
-  const values = data.map((item) => item.value)
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, 400)
-  gradient.addColorStop(0, "rgba(0, 123, 255, 0.8)")
-  gradient.addColorStop(1, "rgba(0, 123, 255, 0.2)")
+  const loyaltyValues = data.map((item) => item.loyalty)
+  const walletValues = data.map((item) => item.wallet)
+  // const discountValues = data.map((item) => item.discount)
+  const cashValues = data.map((item) => item.cash)
+  const upiValues = data.map((item) => item.upi)
 
   chartInstance = new Chart(ctx, {
     type: "bar",
@@ -562,57 +598,48 @@ function createEarningsChart(data, rangeType) {
       labels: labels,
       datasets: [
         {
-          label: "Revenue (₹)",
-          data: values,
-          backgroundColor: gradient,
-          borderColor: "rgba(0, 123, 255, 1)",
-          borderWidth: 2,
-          borderRadius: 6,
-          borderSkipped: false,
+          label: "Loyalty (₹)",
+          data: loyaltyValues,
+          backgroundColor: "rgba(255, 99, 132, 0.8)",
+          borderColor: "rgba(255, 99, 132, 1)",
+          borderWidth: 1,
+        },
+        {
+          label: "Wallet (₹)",  
+          data: walletValues,
+          backgroundColor: "rgba(54, 162, 235, 0.8)",
+          borderColor: "rgba(54, 162, 235, 1)",
+          borderWidth: 1,
+        },
+        // {
+        //   label: "Discount (₹)",
+        //   data: discountValues,
+        //   backgroundColor: "rgba(255, 206, 86, 0.8)",
+        //   borderColor: "rgba(255, 206, 86, 1)",
+        //   borderWidth: 1,
+        // },
+        {
+          label: "Cash (₹)",
+          data: cashValues,
+          backgroundColor: "rgba(75, 192, 192, 0.8)",
+          borderColor: "rgba(75, 192, 192, 1)",
+          borderWidth: 1,
+        },
+        {
+          label: "UPI (₹)",
+          data: upiValues,
+          backgroundColor: "rgba(153, 102, 255, 0.8)",
+          borderColor: "rgba(153, 102, 255, 1)",
+          borderWidth: 1,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: true,
-          position: "top",
-          labels: {
-            font: {
-              size: 14,
-              weight: "bold",
-            },
-            color: "#333",
-          },
-        },
-        tooltip: {
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
-          titleColor: "#fff",
-          bodyColor: "#fff",
-          borderColor: "#007bff",
-          borderWidth: 1,
-          callbacks: {
-            label: (context) => `Revenue: ₹${context.parsed.y.toLocaleString()}`,
-          },
-        },
-      },
       scales: {
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(0, 123, 255, 0.1)",
-          },
-          ticks: {
-            color: "#666",
-            font: {
-              size: 12,
-            },
-            callback: (value) => "₹" + value.toLocaleString(),
-          },
-        },
         x: {
+          stacked: true,
           grid: {
             display: false,
           },
@@ -633,6 +660,52 @@ function createEarningsChart(data, rangeType) {
             },
           },
         },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          grid: {
+            color: "rgba(0, 123, 255, 0.1)",
+          },
+          ticks: {
+            color: "#666",
+            font: {
+              size: 12,
+            },
+            callback: (value) => "₹" + value.toLocaleString(),
+          },
+        },
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: "top",
+          labels: {
+            font: {
+              size: 12,
+              weight: "bold",
+            },
+            color: "#333",
+            usePointStyle: true,
+            padding: 15,
+          },
+        },
+        tooltip: {
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          titleColor: "#fff",
+          bodyColor: "#fff",
+          borderColor: "#007bff",
+          borderWidth: 1,
+          callbacks: {
+            label: (context) => `${context.dataset.label}: ₹${context.parsed.y.toLocaleString()}`,
+            footer: (tooltipItems) => {
+              let total = 0
+              tooltipItems.forEach((item) => {
+                total += item.parsed.y
+              })
+              return `Total: ₹${total.toLocaleString()}`
+            },
+          },
+        },
       },
       animation: {
         duration: 1000,
@@ -642,7 +715,7 @@ function createEarningsChart(data, rangeType) {
   })
 }
 
-// Create Payment Method Chart
+// Create Payment Method Chart (keeping original functionality)
 function createPaymentChart(data, rangeType) {
   const ctx = document.getElementById("analyticsChart").getContext("2d")
 
