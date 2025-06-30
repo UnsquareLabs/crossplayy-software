@@ -322,7 +322,6 @@ async function editPrebooking(prebookingId) {
     document.getElementById("editDuration").value = prebooking.duration
     document.getElementById("editPcUnits").value = (prebooking.pcUnits || []).join(", ");
     // document.getElementById("editPcUnits").value = prebooking.pcUnits || 0
-    // document.getElementById("editPsUnits").value = prebooking.psUnits || 0
 
     document.getElementById("editPrebookingModal").classList.add("show")
     updatePCTimes()
@@ -360,7 +359,7 @@ async function saveEditedPrebooking() {
     return;
   }
 
-  if (!phoneRegex.test(contact)) {
+  if (!phoneRegex.test(contactNo)) {
     alert("❌ Contact number must be exactly 10 digits.");
     return;
   }

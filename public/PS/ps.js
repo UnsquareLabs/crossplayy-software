@@ -394,7 +394,7 @@ async function saveEditedPrebooking() {
         return;
     }
 
-    if (!phoneRegex.test(contact)) {
+    if (!phoneRegex.test(contactNo)) {
         alert("❌ Contact number must be exactly 10 digits.");
         return;
     }
