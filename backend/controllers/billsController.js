@@ -614,7 +614,7 @@ const editBill = async (req, res) => {
         const prevTotalAmount = bill.amount;
         const prevLoyaltyEarned = calculateLoyaltyPoints(prevTotalAmount);
         console.log(`Reversing previous loyalty: -${prevLoyaltyEarned} points`);
-        customer.loyaltyPoints -= prevLoyaltyEarned;
+        // customer.loyaltyPoints -= prevLoyaltyEarned;
 
         // Step 1: Restore old balance
         const prevWallet = bill.wallet;
@@ -632,7 +632,7 @@ const editBill = async (req, res) => {
             console.log(`❌ Insufficient wallet balance. Available: ₹${customer.walletCredit}, Required: ₹${wallet}`);
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
-            customer.loyaltyPoints += prevLoyaltyEarned;
+            // customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
 
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
@@ -647,7 +647,7 @@ const editBill = async (req, res) => {
             console.log(`❌ Insufficient loyalty points. Available: ${customer.loyaltyPoints}, Required: ${loyaltyPoints}`);
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
-            customer.loyaltyPoints += prevLoyaltyEarned;
+            // customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
 
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
@@ -693,6 +693,9 @@ const editBill = async (req, res) => {
 
         if (isSame) {
             console.log('🟡 No changes detected in bill. Deleting latest edit log.');
+            customer.walletCredit -= prevWallet;
+            customer.loyaltyPoints -= prevLoyalty;
+            await customer.save();
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
             if (deletedLog) console.log(`Deleted edit log for billId: ${id}`);
             return res.status(400).json({ message: 'No changes detected' });
@@ -915,7 +918,7 @@ const editBill = async (req, res) => {
             console.log('❌ Invalid payment split.');
             customer.walletCredit -= prevWallet;
             customer.loyaltyPoints -= prevLoyalty;
-            customer.loyaltyPoints += prevLoyaltyEarned;
+            // customer.loyaltyPoints += prevLoyaltyEarned;
             await customer.save();
 
             const deletedLog = await EditLog.findOneAndDelete({ billId: id }, { sort: { timestamp: -1 } });
