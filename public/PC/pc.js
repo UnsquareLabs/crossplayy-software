@@ -215,7 +215,7 @@ function displayPrebookings(prebookings) {
 
   prebookingList.innerHTML = prebookings
     .map((prebooking) => {
-      const scheduledDate = new Date(prebooking.scheduledDate)
+      const scheduledDate = prebooking.scheduledDate
       const formattedDate = scheduledDate
 
 
