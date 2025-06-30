@@ -231,10 +231,10 @@ function loadMoreCustomers() {
 }
 
 // Change page (for future pagination implementation)
-function changePage(direction) {
-    playSound(400, 0.1);
-    // This can be implemented for traditional pagination if needed
-}
+// function changePage(direction) {
+//     playSound(400, 0.1);
+//     // This can be implemented for traditional pagination if needed
+// }
 
 // Fetch and render customers
 async function fetchAndRenderCustomers() {

@@ -2,19 +2,63 @@ const token = localStorage.getItem('token');
 
 if (!token) {
     alert('Unauthorized access. Please log in first.');
-    window.location.href = '../login/login.html'; // Redirect to login page
-
+    window.location.href = '../login/login.html';
 }
+
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('token');
         window.location.href = '../login/login.html';
     }
 }
-// Sample data - replace with actual API calls
-let billsData = [];
 
+// Global variables
+let billsData = [];
+let filteredBills = [];
 let currentEditingId = null;
+let currentPage = 1;
+let billsPerPage = 30;
+let displayedBills = 0;
+
+// Audio context for sound effects
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioInitialized = false;
+
+function initAudioContext() {
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    audioInitialized = true;
+}
+
+function playSound(frequency, duration) {
+    try {
+        if (!audioInitialized) return;
+
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+    } catch (e) {
+        console.log('Audio not supported');
+    }
+}
+
+window.addEventListener('click', () => {
+    if (!audioInitialized) {
+        initAudioContext();
+    }
+}, { once: true });
 
 // Gaming Stickers
 function createGamingStickers() {
@@ -49,52 +93,6 @@ function createParticles() {
     }
 }
 
-// Sound Effects
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-let audioInitialized = false;
-
-// Call this on the first user gesture to enable audio
-function initAudioContext() {
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
-    audioInitialized = true;
-}
-
-function playSound(frequency, duration) {
-    try {
-        if (!audioInitialized) {
-            // AudioContext not started yet, so don't play sound
-            return;
-        }
-
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        oscillator.frequency.value = frequency;
-        oscillator.type = 'sine';
-
-        gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + duration);
-    } catch (e) {
-        console.log('Audio not supported');
-    }
-}
-
-// Example: Call initAudioContext on first user interaction
-window.addEventListener('click', () => {
-    if (!audioInitialized) {
-        initAudioContext();
-    }
-}, { once: true });
-
-
 // Menu Toggle Functionality
 function setupMenu() {
     const menuToggle = document.getElementById('menuToggle');
@@ -115,7 +113,6 @@ function setupMenu() {
         playSound(400, 0.1);
     });
 
-    // Menu item hover effects
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('mouseenter', () => playSound(300, 0.1));
     });
@@ -130,7 +127,7 @@ function formatDate(dateString) {
     });
 }
 
-// Format  Units
+// Format Units
 function formatUnits(bill) {
     const units = bill.type === 'ps' ? bill.psUnits : bill.pcUnits;
 
@@ -147,46 +144,74 @@ function formatUnits(bill) {
     });
 }
 
+// Sort bills by booking time (newest first)
+function sortBillsByDate(bills) {
+    return bills.sort((a, b) => new Date(b.bookingTime) - new Date(a.bookingTime));
+}
 
-// Render bills table
-function renderBills(bills) {
+// Update pagination info
+function updatePaginationInfo(showing, total, filtered) {
+    const paginationInfo = document.getElementById('paginationInfo');
+    paginationInfo.textContent = `Showing ${showing} of ${filtered} bills`;
+}
+
+// Update load more button
+function updateLoadMoreButton(totalBills) {
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    if (displayedBills >= totalBills) {
+        loadMoreBtn.style.display = 'none';
+    } else {
+        loadMoreBtn.style.display = 'block';
+    }
+}
+
+// Render bills table with lazy loading
+function renderBills(bills, append = false) {
     const tbody = document.getElementById('billsTableBody');
 
-    if (bills.length === 0) {
+    if (bills.length === 0 && !append) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                <td colspan="13" style="text-align: center; padding: 40px; color: #666;">
                     No paid bills found.
                 </td>
             </tr>
         `;
+        updatePaginationInfo(0, 0, 0);
         return;
     }
 
-    tbody.innerHTML = bills.map(bill => `
+    const startIndex = append ? displayedBills : 0;
+    const endIndex = Math.min(startIndex + billsPerPage, bills.length);
+    const billsToShow = bills.slice(startIndex, endIndex);
+
+    if (!append) {
+        tbody.innerHTML = '';
+        displayedBills = 0;
+    }
+
+    const rows = billsToShow.map(bill => `
         <tr>
             <td>${bill.userName}</td>
             <td>${bill.contactNo}</td>
             <td>
-  ${formatUnits(bill)}
-  ${
-    Array.isArray(bill.extensions) && bill.extensions.length > 0
-      ? `<div class="extension-note">+${bill.extensions.reduce((sum, ext) => sum + ext.minutes, 0)} min extended</div>`
-      : ''
-  }
-</td>
-
+                ${formatUnits(bill)}
+                ${Array.isArray(bill.extensions) && bill.extensions.length > 0
+            ? `<div class="extension-note">+${bill.extensions.reduce((sum, ext) => sum + ext.minutes, 0)} min extended</div>`
+            : ''
+        }
+            </td>
             <td class="snacks-cell">
-  ${bill.snacks && bill.snacks.length > 0
+                ${bill.snacks && bill.snacks.length > 0
             ? bill.snacks.map(s => `<span>${s.name}${s.quantity}(${s.price})</span>`).join(' ')
             : '—'
         }
-</td>
+            </td>
             <td>${formatDate(bill.bookingTime)}</td>
             <td>₹${bill.cash || 0}</td>
             <td>₹${bill.upi || 0}</td>
-            <td> ₹${bill.wallet || 0}</td>
-            <td> ₹${bill.loyaltyPoints || 0}</td>
+            <td>₹${bill.wallet || 0}</td>
+            <td>₹${bill.loyaltyPoints || 0}</td>
             <td>₹${bill.discount || 0}</td>
             <td class="amount">₹${bill.amount.toLocaleString()}</td>
             <td>${bill.billedBy}</td>
@@ -198,9 +223,244 @@ function renderBills(bills) {
             </td>
         </tr>
     `).join('');
+
+    tbody.insertAdjacentHTML('beforeend', rows);
+    displayedBills = endIndex;
+
+    updatePaginationInfo(Math.min(displayedBills, bills.length), bills.length, bills.length);
+    updateLoadMoreButton(bills.length);
 }
 
+// Load more bills
+function loadMoreBills() {
+    playSound(600, 0.2);
+    const billsToRender = filteredBills.length > 0 ? filteredBills : billsData;
+    renderBills(billsToRender, true);
+    addTableEffects();
+}
 
+// Fetch and render paid bills
+async function fetchAndRenderPaidBills() {
+    try {
+        const res = await fetch('/api/bills/all', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        const allBills = await res.json();
+
+        billsData = allBills.filter(bill => bill.status === true);
+        billsData = sortBillsByDate(billsData);
+        filteredBills = [...billsData];
+
+        renderBills(billsData);
+        addTableEffects();
+    } catch (error) {
+        console.error('Error fetching paid bills:', error);
+        const tbody = document.getElementById('billsTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="13" style="text-align: center; padding: 40px; color: red;">
+                    Failed to load paid bills.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Search functionality
+function setupSearch() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', function () {
+        const searchTerm = this.value.toLowerCase();
+        filteredBills = billsData.filter(bill =>
+            bill.userName.toLowerCase().includes(searchTerm) ||
+            bill.contactNo.includes(searchTerm)
+        );
+
+        displayedBills = 0;
+        renderBills(filteredBills);
+        addTableEffects();
+        playSound(400, 0.1);
+    });
+}
+
+// Excel Export Functions
+function openExportModal() {
+    playSound(600, 0.2);
+
+    // Set default dates (last 30 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+
+    updateExportInfo();
+    document.getElementById('exportModal').style.display = 'block';
+}
+
+function closeExportModal() {
+    document.getElementById('exportModal').style.display = 'none';
+    playSound(400, 0.1);
+}
+
+function updateExportInfo() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (startDate && endDate) {
+        const filteredForExport = billsData.filter(bill => {
+            const billDate = new Date(bill.bookingTime).toISOString().split('T')[0];
+            return billDate >= startDate && billDate <= endDate;
+        });
+
+        document.getElementById('exportInfo').textContent =
+            `Found ${filteredForExport.length} bills in selected date range`;
+    }
+}
+
+// Setup date change listeners
+function setupExportModal() {
+    document.getElementById('startDate').addEventListener('change', updateExportInfo);
+    document.getElementById('endDate').addEventListener('change', updateExportInfo);
+}
+
+// Convert bills to CSV format
+function convertToCSV(bills) {
+    const headers = [
+        'Customer Name', 'Contact', 'Units', 'Snacks', 'Booking Time',
+        'Cash', 'UPI', 'Wallet', 'Loyalty Points', 'Discount', 'Amount', 'Billed By'
+    ];
+
+    const csvContent = [
+        headers.join(','),
+        ...bills.map(bill => {
+            const units = formatUnitsForExport(bill);
+            const snacks = bill.snacks && bill.snacks.length > 0
+                ? bill.snacks.map(s => `${s.name}(${s.quantity})`).join('; ')
+                : '';
+
+            return [
+                `"${bill.userName}"`,
+                `"${bill.contactNo}"`,
+                `"${units}"`,
+                `"${snacks}"`,
+                `"${formatDate(bill.bookingTime)}"`,
+                bill.cash || 0,
+                bill.upi || 0,
+                bill.wallet || 0,
+                bill.loyaltyPoints || 0,
+                bill.discount || 0,
+                bill.amount,
+                `"${bill.billedBy}"`
+            ].join(',');
+        })
+    ].join('\n');
+
+    return csvContent;
+}
+
+function formatUnitsForExport(bill) {
+    const units = bill.type === 'ps' ? bill.psUnits : bill.pcUnits;
+
+    return units.map(unit => {
+        const duration = unit.duration;
+        const timeStr = `${Math.floor(duration / 60)}h ${duration % 60}m`;
+
+        if (bill.type === 'ps') {
+            const totalPlayers = Array.isArray(unit.players) ? unit.players.length : 1;
+            return `${unit.psId} • ${timeStr} • ${totalPlayers}P`;
+        } else {
+            return `${unit.pcId} • ${timeStr}`;
+        }
+    }).join('; ');
+}
+
+// Download CSV file
+function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// Handle export form submission
+document.getElementById('exportForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates');
+        return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+        alert('Start date cannot be after end date');
+        return;
+    }
+
+    // Filter bills by date range
+    const filteredForExport = billsData.filter(bill => {
+        const billDate = new Date(bill.bookingTime).toISOString().split('T')[0];
+        return billDate >= startDate && billDate <= endDate;
+    });
+
+    if (filteredForExport.length === 0) {
+        alert('No bills found in the selected date range');
+        return;
+    }
+
+    // Generate CSV and download
+    const csvContent = convertToCSV(filteredForExport);
+    const filename = `paid_bills_${startDate}_to_${endDate}.csv`;
+
+    downloadCSV(csvContent, filename);
+    closeExportModal();
+
+    // Show success message
+    showMessage(`✓ Exported ${filteredForExport.length} bills successfully!`, 'success');
+    playSound(800, 0.3);
+});
+
+// Show success/error messages
+function showMessage(message, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? 'linear-gradient(45deg, #28a745, #20c997)' : 'linear-gradient(45deg, #dc3545, #e74c3c)'};
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        z-index: 1001;
+        animation: slideIn 0.3s ease;
+        max-width: 300px;
+        word-wrap: break-word;
+    `;
+    messageDiv.textContent = message;
+    document.body.appendChild(messageDiv);
+
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 4000);
+}
+
+// Edit bill functions (keeping existing functionality)
 async function editBill(billId) {
     try {
         console.log("Editing bill ID:", billId);
@@ -217,23 +477,20 @@ async function editBill(billId) {
         const bill = await res.json();
         currentEditingId = billId;
 
-        // Fill form with editable fields
         document.getElementById('editDiscount').value = bill.discount || 0;
         document.getElementById('editCash').value = bill.cash || 0;
         document.getElementById('editUpi').value = bill.upi || 0;
         document.getElementById('editWallet').value = bill.wallet || 0;
         document.getElementById('editLoyalty').value = bill.loyaltyPoints || 0;
-        // Example inside your editBill after units are loaded
+
         toggleUnitGroups(bill.pcUnits, bill.psUnits);
 
-        // Conditionally render units
         if (bill.type === 'ps') {
             renderPsUnitsFields(bill.psUnits);
         } else {
             renderPcUnitsFields(bill.pcUnits);
         }
 
-        // Show modal
         document.getElementById('editModal').style.display = 'block';
 
     } catch (err) {
@@ -249,7 +506,6 @@ function toggleUnitGroups(pcUnits, psUnits) {
     pcGroup.style.display = (pcUnits && pcUnits.length > 0) ? 'block' : 'none';
     psGroup.style.display = (psUnits && psUnits.length > 0) ? 'block' : 'none';
 }
-
 
 function renderPcUnitsFields(pcUnits) {
     const container = document.getElementById('editPcUnitsContainer');
@@ -281,14 +537,6 @@ function renderPcUnitsFields(pcUnits) {
         container.appendChild(div);
     });
 }
-function togglePlayerDetails(button) {
-    const container = button.nextElementSibling;
-    const isVisible = container.style.display === 'block';
-
-    container.style.display = isVisible ? 'none' : 'block';
-    button.textContent = isVisible ? 'Show Players' : 'Hide Players';
-}
-
 
 function renderPsUnitsFields(psUnits) {
     const container = document.getElementById('editPsUnitsContainer');
@@ -300,29 +548,29 @@ function renderPsUnitsFields(psUnits) {
         const players = unit.players?.length ? unit.players : [{ playerNo: 1, duration: unit.duration }];
 
         const playerRows = players.map((p, playerIndex) => `
-      <div class="player-row" style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-        <label style="width: 80px;">Player ${playerIndex + 1}:</label>
-        <input type="number" class="player-duration" value="${p.duration}" min="10" step="10" required style="width: 80px;" />
-        <button type="button" onclick="deletePlayer(${unitIndex}, ${playerIndex})" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px;">✕</button>
-      </div>
-    `).join('');
+            <div class="player-row" style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <label style="width: 80px;">Player ${playerIndex + 1}:</label>
+                <input type="number" class="player-duration" value="${p.duration}" min="10" step="10" required style="width: 80px;" />
+                <button type="button" onclick="deletePlayer(${unitIndex}, ${playerIndex})" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px;">✕</button>
+            </div>
+        `).join('');
 
         div.innerHTML = `
-      <input type="hidden" class="ps-id" value="${unit.psId}" />
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <div style="font-weight: bold;"> ${unit.psId}</div>
-        <button type="button" onclick="togglePlayers(${unitIndex})"
-          style="background: #6c757d; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px;"
-        >Show Players</button>
-      </div>
+            <input type="hidden" class="ps-id" value="${unit.psId}" />
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-weight: bold;"> ${unit.psId}</div>
+                <button type="button" onclick="togglePlayers(${unitIndex})"
+                    style="background: #6c757d; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px;"
+                >Show Players</button>
+            </div>
 
-      <div class="players-container" style="display: none; margin-top: 10px;">
-        ${playerRows}
-        <button type="button" onclick="addPlayer(${unitIndex})"
-          style="margin-top: 8px; background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 4px;"
-        >+ Add Player</button>
-      </div>
-    `;
+            <div class="players-container" style="display: none; margin-top: 10px;">
+                ${playerRows}
+                <button type="button" onclick="addPlayer(${unitIndex})"
+                    style="margin-top: 8px; background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 4px;"
+                >+ Add Player</button>
+            </div>
+        `;
 
         container.appendChild(div);
     });
@@ -338,8 +586,6 @@ function togglePlayers(unitIndex) {
     button.textContent = isHidden ? 'Hide Players' : 'Show Players';
 }
 
-
-
 function addPlayer(unitIndex) {
     const unit = document.querySelectorAll('.ps-unit-row')[unitIndex];
     const playersContainer = unit.querySelector('.players-container');
@@ -352,10 +598,10 @@ function addPlayer(unitIndex) {
     newRow.className = 'player-row';
     newRow.style = "display: flex; align-items: center; gap: 10px; margin-bottom: 6px;";
     newRow.innerHTML = `
-    <label style="width: 80px;">Player ${playerCount + 1}:</label>
-    <input type="number" class="player-duration" value="60" min="10" step="10" required style="width: 80px;" />
-    <button type="button" onclick="deletePlayer(${unitIndex}, ${playerCount})" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px;">✕</button>
-  `;
+        <label style="width: 80px;">Player ${playerCount + 1}:</label>
+        <input type="number" class="player-duration" value="60" min="10" step="10" required style="width: 80px;" />
+        <button type="button" onclick="deletePlayer(${unitIndex}, ${playerCount})" style="background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px;">✕</button>
+    `;
     playersContainer.insertBefore(newRow, playersContainer.lastElementChild);
 }
 
@@ -370,61 +616,9 @@ function deletePlayer(unitIndex, playerIndex) {
         rows[playerIndex].remove();
     }
 
-    // Re-label player numbers and reset button handlers
     unit.querySelectorAll('.player-row').forEach((row, i) => {
         row.querySelector('label').textContent = `Player ${i + 1}:`;
         row.querySelector('button').setAttribute('onclick', `deletePlayer(${unitIndex}, ${i})`);
-    });
-}
-
-
-
-
-
-// Fetch and render paid bills
-async function fetchAndRenderPaidBills() {
-    try {
-        const res = await fetch('/api/bills/all', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        const allBills = await res.json();
-
-        // Update local billsData with fetched data
-        billsData = allBills.filter(bill => bill.status === true);
-
-        renderBills(billsData);
-    } catch (error) {
-        console.error('Error fetching paid bills:', error);
-        const tbody = document.getElementById('billsTableBody');
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: red;">
-                    Failed to load paid bills.
-                </td>
-            </tr>
-        `;
-    }
-}
-
-
-
-
-// Search functionality
-function setupSearch() {
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', function () {
-        const searchTerm = this.value.toLowerCase();
-        const filteredBills = billsData.filter(bill =>
-            bill.userName.toLowerCase().includes(searchTerm) ||
-            bill.contactNo.includes(searchTerm)
-            // bill.pcUnits.some(unit => unit.pcId.toLowerCase().includes(searchTerm))
-        );
-        renderBills(filteredBills);
-        playSound(400, 0.1);
     });
 }
 
@@ -445,30 +639,9 @@ async function deleteBill(billId) {
                 throw new Error('Failed to delete bill');
             }
 
-            // Remove from local state and re-render
-            // billsData = billsData.filter(bill => bill._id !== billId);
             fetchAndRenderPaidBills();
             playSound(1000, 0.2);
-
-            // Show success message
-            const successMsg = document.createElement('div');
-            successMsg.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: linear-gradient(45deg, #28a745, #20c997);
-                color: white;
-                padding: 15px 25px;
-                border-radius: 10px;
-                z-index: 1001;
-                animation: slideIn 0.3s ease;
-            `;
-            successMsg.textContent = '✓ Bill deleted successfully!';
-            document.body.appendChild(successMsg);
-
-            setTimeout(() => {
-                successMsg.remove();
-            }, 3000);
+            showMessage('✓ Bill deleted successfully!', 'success');
         } catch (error) {
             console.error('Error deleting bill:', error);
             alert('Failed to delete the bill. Please try again.');
@@ -476,16 +649,13 @@ async function deleteBill(billId) {
     }
 }
 
-// Edit bill
+// Submit bill edit
 async function submitBillEdit() {
-
-
     const cash = Number(document.getElementById('editCash').value) || 0;
     const upi = Number(document.getElementById('editUpi').value) || 0;
     const discount = Number(document.getElementById('editDiscount').value) || 0;
     const wallet = Number(document.getElementById('editWallet').value) || 0;
     const loyaltyPoints = Number(document.getElementById('editLoyalty').value) || 0;
-
 
     const pcUnits = Array.from(document.querySelectorAll('#editPcUnitsContainer .pc-unit-row')).map(row => ({
         pcId: row.querySelector('.pc-id').value,
@@ -494,7 +664,6 @@ async function submitBillEdit() {
 
     const psUnits = Array.from(document.querySelectorAll('#editPsUnitsContainer .ps-unit-row')).map(row => {
         const psId = row.querySelector('.ps-id').value;
-
         const playersContainer = row.querySelector('.players-container');
         const players = Array.from(playersContainer.querySelectorAll('.player-row')).map((playerRow, index) => {
             const duration = parseInt(playerRow.querySelector('.player-duration').value);
@@ -526,8 +695,8 @@ async function submitBillEdit() {
     if (psUnits.length > 0) {
         updatedBill.psUnits = psUnits;
     }
+
     try {
-        // 🔁 Step 1: Log the old bill before updating
         const logRes = await fetch(`/api/edit/logs`, {
             method: 'POST',
             headers: {
@@ -553,7 +722,6 @@ async function submitBillEdit() {
         });
 
         if (!res.ok) {
-            // Try to parse error message from response body
             let errorMessage = 'Failed to update bill';
             try {
                 const errorData = await res.json();
@@ -565,10 +733,9 @@ async function submitBillEdit() {
             }
 
             alert(errorMessage);
-            return; // stop execution here
+            return;
         }
 
-        // ✅ You forgot to parse the successful JSON response
         const result = await res.json();
 
         if (!result.bill) {
@@ -577,12 +744,11 @@ async function submitBillEdit() {
 
         fetchAndRenderPaidBills();
         document.getElementById('editModal').style.display = 'none';
-        alert('✓ Bill updated successfully!');
+        showMessage('✓ Bill updated successfully!', 'success');
     } catch (error) {
         console.error('Error updating bill:', error);
         alert('Something went wrong while updating the bill.');
     }
-
 }
 
 // Close modal
@@ -592,11 +758,10 @@ function closeModal() {
     document.getElementById('editCash').value = '';
     document.getElementById('editUpi').value = '';
     document.getElementById('editDiscount').value = '';
-    // Clear PC units container
+
     const pcContainer = document.getElementById('editPcUnitsContainer');
     pcContainer.innerHTML = '';
 
-    // Clear PS units container
     const psContainer = document.getElementById('editPsUnitsContainer');
     psContainer.innerHTML = '';
     playSound(400, 0.1);
@@ -608,19 +773,24 @@ document.getElementById('editForm').addEventListener('submit', async function (e
     if (!currentEditingId) return;
 
     try {
-        await submitBillEdit(); // 🔧 Now the backend will be called properly
+        await submitBillEdit();
     } catch (err) {
         console.error('Edit submission failed:', err);
         alert('Something went wrong.');
     }
 });
 
-
 // Close modal when clicking outside
 window.addEventListener('click', function (event) {
-    const modal = document.getElementById('editModal');
-    if (event.target === modal) {
+    const editModal = document.getElementById('editModal');
+    const exportModal = document.getElementById('exportModal');
+
+    if (event.target === editModal) {
         closeModal();
+    }
+
+    if (event.target === exportModal) {
+        closeExportModal();
     }
 });
 
@@ -628,7 +798,8 @@ window.addEventListener('click', function (event) {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
         closeModal();
-        // Close menu if open
+        closeExportModal();
+
         const menuToggle = document.getElementById('menuToggle');
         const sideMenu = document.getElementById('sideMenu');
         const menuOverlay = document.getElementById('menuOverlay');
@@ -651,17 +822,18 @@ function addTableEffects() {
 
 // Initialize page
 function initializePage() {
-    // Show loading
     document.getElementById('loading').style.display = 'block';
     document.getElementById('billsTable').style.display = 'none';
+    document.getElementById('paginationContainer').style.display = 'none';
 
-    // Simulate loading delay
     setTimeout(() => {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('billsTable').style.display = 'table';
+        document.getElementById('paginationContainer').style.display = 'block';
 
         fetchAndRenderPaidBills();
         setupSearch();
+        setupExportModal();
         addTableEffects();
         playSound(800, 0.3);
     }, 1500);
@@ -676,15 +848,15 @@ initializePage();
 // Add CSS animation for success messages
 const style = document.createElement('style');
 style.textContent = `
-            @keyframes slideIn {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-        `;
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+`;
 document.head.appendChild(style);

@@ -389,22 +389,30 @@ body {
     background: linear-gradient(135deg, #007bff, #28a745);
     color: white;
     padding: 20px;
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 .table-header h3 {
     font-size: 24px;
-    margin-bottom: 10px;
+    margin: 0;
+}
+
+.header-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .search-container {
-    margin-top: 15px;
     position: relative;
 }
 
 .search-input {
-    width: 100%;
-    max-width: 400px;
     padding: 12px 20px;
     border: none;
     border-radius: 25px;
@@ -413,6 +421,7 @@ body {
     font-size: 16px;
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
+    width: 250px;
 }
 
 .search-input::placeholder {
@@ -423,6 +432,25 @@ body {
     outline: none;
     background: rgba(255, 255, 255, 0.3);
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.export-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.export-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 255, 255, 0.3);
 }
 
 /* Table */
@@ -485,6 +513,48 @@ body {
     border-radius: 10px;
     display: inline-block;
     margin: 2px;
+}
+
+/* Pagination Container */
+.pagination-container {
+    padding: 20px;
+    background: rgba(0, 123, 255, 0.02);
+    border-top: 1px solid rgba(0, 123, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.pagination-info {
+    color: #666;
+    font-size: 14px;
+}
+
+.load-more-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.load-more-btn {
+    padding: 12px 30px;
+    border: none;
+    background: linear-gradient(45deg, #007bff, #28a745);
+    color: white;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.load-more-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
 }
 
 /* Action Buttons */
@@ -604,6 +674,16 @@ body {
     box-shadow: 0 0 15px rgba(0, 123, 255, 0.2);
 }
 
+.export-info {
+    background: rgba(0, 123, 255, 0.1);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #007bff;
+    font-weight: 500;
+}
+
 .modal-buttons {
     display: flex;
     gap: 15px;
@@ -630,6 +710,16 @@ body {
 .save-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+}
+
+.export-btn-modal {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+}
+
+.export-btn-modal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
 }
 
 .cancel-btn {
@@ -698,6 +788,25 @@ body {
         padding: 0 20px;
     }
 
+    .table-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+
+    .pagination-container {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .load-more-container {
+        order: 2;
+        margin-top: 15px;
+    }
+
     td.snacks-cell {
         font-size: 14px;
         line-height: 1.4;
@@ -726,10 +835,7 @@ body {
         margin: 2px 0;
         border-radius: 6px;
     }
-
 }
-
-/* Add these styles at the end of the CSS file */
 
 /* Header Logo Styles */
 .header-content {
