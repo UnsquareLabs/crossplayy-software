@@ -216,14 +216,8 @@ function displayPrebookings(prebookings) {
   prebookingList.innerHTML = prebookings
     .map((prebooking) => {
       const scheduledDate = new Date(prebooking.scheduledDate)
-      const formattedDate = scheduledDate.toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+      const formattedDate = scheduledDate
+
 
       const hours = Math.floor(prebooking.duration / 60)
       const mins = prebooking.duration % 60
@@ -1534,7 +1528,14 @@ async function bookSelectedPCs() {
   if (isPrebookMode) {
     // Handle prebooking
     const scheduledDateTime = document.getElementById("scheduledDateTime").value
+    const scheduledDate = new Date(scheduledDateTime)
 
+    // Convert to IST manually (IST = UTC + 5:30)
+    const istOffsetMs = 5.5 * 60 * 60 * 1000 // 5.5 hours in milliseconds
+    const istDate = new Date(scheduledDate.getTime() + istOffsetMs)
+
+    // Format as "YYYY-MM-DDTHH:MM" for input type="datetime-local"
+    const formattedDateTime = istDate.toISOString().slice(0, 16)
     if (!scheduledDateTime) {
       alert("Please select a scheduled date and time for prebooking")
       bookButton.disabled = false
@@ -1554,7 +1555,7 @@ async function bookSelectedPCs() {
           psUnits: [],
           name: userName,
           contactNo: contactNumber,
-          scheduledDate: scheduledDateTime,
+          scheduledDate: formattedDateTime,
           duration: duration,
           // billedBy: "Admin", // You can modify this based on your auth system
         }),
