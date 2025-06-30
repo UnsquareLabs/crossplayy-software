@@ -348,7 +348,7 @@ async function saveEditedPrebooking() {
   const contactNo = document.getElementById("editContactNo").value.trim()
   // const scheduledDate = document.getElementById("editScheduledDate").value
   // Handle prebooking
-  const localDateTime = document.getElementById("scheduledDateTime").value
+  const localDateTime = document.getElementById("editScheduledDate").value
 
   // Convert local datetime string to UTC
   const scheduledDate = new Date(localDateTime).toISOString();
