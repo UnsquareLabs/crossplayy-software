@@ -20,6 +20,7 @@ const psData = [
     { id: 5, status: "available" },
     { id: 6, status: "available" },
     { id: 7, status: "available" },
+    { id: 8, status: "available" },
 ]
 
 const psPlayersMap = {}
